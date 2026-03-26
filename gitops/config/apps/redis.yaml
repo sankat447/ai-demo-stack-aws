@@ -23,13 +23,13 @@ spec:
         - containerPort: 6379
         env:
         - name: REDIS_PASSWORD
-          value: "@Demo123#"
+          value: "Demo1234#"
         volumeMounts:
         - name: data
           mountPath: /bitnami/redis/data
         readinessProbe:
           exec:
-            command: ["redis-cli", "-a", "@Demo123#", "ping"]
+            command: ["redis-cli", "-a", "Demo1234#", "ping"]
           initialDelaySeconds: 5
           periodSeconds: 10
       volumes:

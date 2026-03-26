@@ -26,7 +26,7 @@ spec:
         - name: MONGO_INITDB_ROOT_USERNAME
           value: "root"
         - name: MONGO_INITDB_ROOT_PASSWORD
-          value: "@Demo123#"
+          value: "Demo1234#"
         volumeMounts:
         - name: data
           mountPath: /data/db

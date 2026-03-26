@@ -17,7 +17,7 @@ spec:
         args:
         - |
           echo "Waiting for MinIO..."
-          until mc alias set minio http://minio.rhoai-minio.svc:9000 minioadmin '@Demo123#' 2>/dev/null; do
+          until mc alias set minio http://minio.rhoai-minio.svc:9000 minioadmin 'Demo1234#' 2>/dev/null; do
             sleep 5
           done
           echo "MinIO is ready. Creating buckets..."

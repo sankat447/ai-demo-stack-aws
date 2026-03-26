@@ -44,33 +44,23 @@ resource "null_resource" "ocp_install" {
 
       # ── Resolve AWS SSO credentials to env vars ──────────────────────────
       # openshift-install does NOT support AWS SSO profiles directly.
-      # We must export resolved access keys from the SSO session.
+      # Export resolved credentials from the active SSO session.
       echo "Resolving AWS SSO credentials for openshift-install..."
-      eval $(aws configure export-credentials --profile "${var.aws_profile}" --format env 2>/dev/null || true)
 
-      # Fallback: if export-credentials not available (older CLI), use sts
-      if [[ -z "$${AWS_ACCESS_KEY_ID:-}" ]]; then
-        echo "Using sts get-session-token fallback..."
-        CREDS_JSON=$(aws sts get-session-token --profile "${var.aws_profile}" --output json 2>/dev/null || echo "")
-        if [[ -n "$CREDS_JSON" ]]; then
-          export AWS_ACCESS_KEY_ID=$(echo "$CREDS_JSON" | jq -r '.Credentials.AccessKeyId')
-          export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS_JSON" | jq -r '.Credentials.SecretAccessKey')
-          export AWS_SESSION_TOKEN=$(echo "$CREDS_JSON" | jq -r '.Credentials.SessionToken')
-        fi
-      fi
-
-      # Final fallback: extract from SSO cache
-      if [[ -z "$${AWS_ACCESS_KEY_ID:-}" ]]; then
-        echo "Extracting credentials from SSO cache..."
-        ROLE_CREDS=$(aws sts get-caller-identity --profile "${var.aws_profile}" --query "Arn" --output text 2>/dev/null)
-        if [[ -n "$ROLE_CREDS" ]]; then
-          # Re-export using the profile — terraform already authenticated
-          export AWS_PROFILE="${var.aws_profile}"
-        fi
+      CREDS_JSON=$(aws configure export-credentials --profile "${var.aws_profile}" --format json 2>/dev/null || echo "")
+      if [[ -n "$CREDS_JSON" ]] && echo "$CREDS_JSON" | jq -e '.AccessKeyId' &>/dev/null; then
+        export AWS_ACCESS_KEY_ID=$(echo "$CREDS_JSON" | jq -r '.AccessKeyId')
+        export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS_JSON" | jq -r '.SecretAccessKey')
+        export AWS_SESSION_TOKEN=$(echo "$CREDS_JSON" | jq -r '.SessionToken // empty')
+        echo "Credentials resolved via aws configure export-credentials"
+      else
+        echo "export-credentials failed, using AWS_PROFILE fallback..."
+        export AWS_PROFILE="${var.aws_profile}"
       fi
 
       export AWS_DEFAULT_REGION="${var.aws_region}"
-      echo "AWS credentials resolved for region ${var.aws_region}"
+      unset AWS_PROFILE 2>/dev/null || true
+      echo "AWS region: ${var.aws_region}, Key ID: $${AWS_ACCESS_KEY_ID:0:8}..."
 
       # ── Skip if cluster already exists ───────────────────────────────────
       if [[ -f "$INSTALL_DIR/auth/kubeconfig" ]]; then

@@ -17,8 +17,8 @@ spec:
         args:
         - |
           echo "Initializing pgvector extension..."
-          PGPASSWORD='@Demo123#' psql -h ${AURORA_ENDPOINT:-aurora-endpoint} -U rhoai_admin -d rhoai_demo -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
-          PGPASSWORD='@Demo123#' psql -h ${AURORA_ENDPOINT:-aurora-endpoint} -U rhoai_admin -d rhoai_demo -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;" || true
+          PGPASSWORD='Demo1234#' psql -h ${AURORA_ENDPOINT:-aurora-endpoint} -U rhoai_admin -d rhoai_demo -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
+          PGPASSWORD='Demo1234#' psql -h ${AURORA_ENDPOINT:-aurora-endpoint} -U rhoai_admin -d rhoai_demo -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;" || true
           echo "pgvector initialized."
         env:
         - name: AURORA_ENDPOINT

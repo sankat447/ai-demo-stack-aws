@@ -154,7 +154,7 @@ variable "db_master_password" {
   description = "Master DB password"
   type        = string
   sensitive   = true
-  default     = "@Demo123#"
+  default     = "Demo1234#"
 }
 
 variable "aurora_engine_version" {
@@ -277,5 +277,5 @@ variable "admin_password" {
   description = "Default password for admin/developer users"
   type        = string
   sensitive   = true
-  default     = "@Demo123#"
+  default     = "Demo1234#"
 }

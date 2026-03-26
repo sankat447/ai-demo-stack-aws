@@ -25,7 +25,7 @@ spec:
         args:
         - "--host=0.0.0.0"
         - "--port=5000"
-        - "--backend-store-uri=postgresql://rhoai_admin:@Demo123#@$(AURORA_ENDPOINT):5432/rhoai_demo"
+        - "--backend-store-uri=postgresql://rhoai_admin:Demo1234#@$(AURORA_ENDPOINT):5432/rhoai_demo"
         - "--default-artifact-root=s3://rhoai-demo-demo-data-lake/mlflow-artifacts/"
         env:
         - name: AURORA_ENDPOINT
@@ -41,7 +41,7 @@ spec:
         - name: AWS_ACCESS_KEY_ID
           value: "minioadmin"
         - name: AWS_SECRET_ACCESS_KEY
-          value: "@Demo123#"
+          value: "Demo1234#"
         readinessProbe:
           httpGet:
             path: /health

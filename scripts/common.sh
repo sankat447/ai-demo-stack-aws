@@ -17,7 +17,7 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 # ── Defaults ────────────────────────────────────────────────────────────────
-DEFAULT_PASSWORD='@Demo123#'
+DEFAULT_PASSWORD='Demo1234#'
 AWS_PROFILE="${AWS_PROFILE:-rhoai-demo}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 CLUSTER_NAME="${CLUSTER_NAME:-ai-demo}"

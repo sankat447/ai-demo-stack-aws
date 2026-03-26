@@ -35,7 +35,7 @@ gpu_max_replicas             = 1
 # ── Aurora ───────────────────────────────────────────────────────────────────
 db_name               = "rhoai_demo"
 db_master_username    = "rhoai_admin"
-db_master_password    = "@Demo123#"
+db_master_password    = "Demo1234#"
 aurora_engine_version = "16.4"
 aurora_min_acu        = 0.5
 aurora_max_acu        = 4
@@ -52,4 +52,4 @@ monthly_budget_usd = 700
 # ssh_public_key = "<paste your ~/.ssh/id_rsa.pub here>"
 
 # Default password for all services (Aurora, ArgoCD, Grafana, Vault, etc.)
-admin_password = "@Demo123#"
+admin_password = "Demo1234#"

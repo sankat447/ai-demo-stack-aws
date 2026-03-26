@@ -23,13 +23,13 @@ spec:
         - containerPort: 8080
         env:
         - name: WEBUI_SECRET_KEY
-          value: "@Demo123#"
+          value: "Demo1234#"
         - name: OPENAI_API_BASE_URL
           value: "http://portkey.rhoai-demo.svc:8787/v1"
         - name: OPENAI_API_KEY
           value: "demo-key"
         - name: MONGODB_URI
-          value: "mongodb://root:@Demo123#@mongodb.rhoai-demo.svc:27017"
+          value: "mongodb://root:Demo1234#@mongodb.rhoai-demo.svc:27017"
         - name: DEFAULT_MODELS
           value: "llama-3.1-8b"
         volumeMounts:
