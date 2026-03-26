@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: portkey
-  namespace: rhoai-demo
+  namespace: ai-demo
   labels:
     app: portkey
 spec:
@@ -35,7 +35,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: portkey
-  namespace: rhoai-demo
+  namespace: ai-demo
 spec:
   selector:
     app: portkey
@@ -47,7 +47,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: portkey
-  namespace: rhoai-demo
+  namespace: ai-demo
 spec:
   to:
     kind: Service

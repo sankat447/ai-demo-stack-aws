@@ -2,9 +2,9 @@ variable "repository_names" {
   description = "List of ECR repository names"
   type        = list(string)
   default = [
-    "rhoai-demo/notebook-base",
-    "rhoai-demo/langchain-server",
-    "rhoai-demo/lambda-metering"
+    "ai-demo/notebook-base",
+    "ai-demo/langchain-server",
+    "ai-demo/lambda-metering"
   ]
 }
 

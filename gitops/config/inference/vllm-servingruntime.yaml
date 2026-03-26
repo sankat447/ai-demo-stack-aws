@@ -3,7 +3,7 @@ apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
   name: vllm-runtime
-  namespace: rhoai-demo
+  namespace: ai-demo
   labels:
     opendatahub.io/dashboard: "true"
   annotations:

@@ -3,7 +3,7 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: llama-3-1-8b
-  namespace: rhoai-demo
+  namespace: ai-demo
   annotations:
     serving.kserve.io/deploymentMode: Serverless
     serving.knative.openshift.io/enablePassthrough: "true"
@@ -24,7 +24,7 @@ spec:
       # Model downloaded from HuggingFace or pre-staged in S3
       # For T4 GPU (16GB VRAM): use 8B parameter models only
       # Supported: llama-3.1-8b, mistral-7b, granite-8b, qwen2.5-7b
-      storageUri: s3://rhoai-demo-demo-data-lake/models/llama-3.1-8b
+      storageUri: s3://ai-demo-data-lake/models/llama-3.1-8b
       resources:
         requests:
           cpu: "2"

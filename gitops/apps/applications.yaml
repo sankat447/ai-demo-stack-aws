@@ -394,7 +394,7 @@ spec:
       include: "vllm-*.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: rhoai-demo
+    namespace: ai-demo
   syncPolicy:
     automated:
       prune: true
@@ -476,7 +476,7 @@ spec:
       include: "llama-*.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: rhoai-demo
+    namespace: ai-demo
   syncPolicy:
     automated:
       prune: true
@@ -503,7 +503,7 @@ spec:
       include: "mongodb.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: rhoai-demo
+    namespace: ai-demo
   syncPolicy:
     automated:
       prune: true
@@ -578,7 +578,7 @@ spec:
       include: "portkey.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: rhoai-demo
+    namespace: ai-demo
   syncPolicy:
     automated:
       prune: true
@@ -603,7 +603,7 @@ spec:
       include: "n8n.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: rhoai-demo
+    namespace: ai-demo
   syncPolicy:
     automated:
       prune: true
@@ -630,7 +630,7 @@ spec:
       include: "open-webui.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: rhoai-demo
+    namespace: ai-demo
   syncPolicy:
     automated:
       prune: true
@@ -680,7 +680,7 @@ spec:
       include: "redis.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: rhoai-demo
+    namespace: ai-demo
   syncPolicy:
     automated:
       prune: true

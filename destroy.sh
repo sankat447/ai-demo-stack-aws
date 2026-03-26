@@ -134,7 +134,7 @@ section "PHASE 5 — VERIFY CLEANUP"
 log_info "Verifying resource cleanup..."
 
 # Check S3 bucket
-BUCKET_NAME="rhoai-demo-demo-data-lake"
+BUCKET_NAME="ai-demo-data-lake"
 if aws s3api head-bucket --bucket "$BUCKET_NAME" --profile "$AWS_PROFILE" 2>/dev/null; then
   log_warn "S3 bucket ${BUCKET_NAME} still exists"
 else
@@ -142,15 +142,15 @@ else
 fi
 
 # Check VPC
-VPC_COUNT=$(aws ec2 describe-vpcs --filters "Name=tag:Project,Values=rhoai-demo" --profile "$AWS_PROFILE" --query 'Vpcs | length(@)' --output text 2>/dev/null || echo "0")
+VPC_COUNT=$(aws ec2 describe-vpcs --filters "Name=tag:Project,Values=ai" --profile "$AWS_PROFILE" --query 'Vpcs | length(@)' --output text 2>/dev/null || echo "0")
 if [[ "$VPC_COUNT" -gt 0 ]]; then
-  log_warn "VPC(s) still exist with Project=rhoai-demo tag"
+  log_warn "VPC(s) still exist with Project=ai tag"
 else
   log_ok "VPC cleaned up"
 fi
 
 # Check RDS
-RDS_COUNT=$(aws rds describe-db-clusters --profile "$AWS_PROFILE" --query "DBClusters[?contains(DBClusterIdentifier, 'rhoai-demo')] | length(@)" --output text 2>/dev/null || echo "0")
+RDS_COUNT=$(aws rds describe-db-clusters --profile "$AWS_PROFILE" --query "DBClusters[?contains(DBClusterIdentifier, 'ai-demo')] | length(@)" --output text 2>/dev/null || echo "0")
 if [[ "$RDS_COUNT" -gt 0 ]]; then
   log_warn "Aurora cluster(s) still exist"
 else

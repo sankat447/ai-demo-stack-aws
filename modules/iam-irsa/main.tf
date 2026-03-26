@@ -33,7 +33,7 @@ resource "aws_iam_role" "s3_access" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:rhoai-demo:rhoai-s3-sa"
+          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:ai-demo:rhoai-s3-sa"
         }
       }
     }]
@@ -81,7 +81,7 @@ resource "aws_iam_role" "bedrock_access" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:rhoai-demo:rhoai-bedrock-sa"
+          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:ai-demo:rhoai-bedrock-sa"
         }
       }
     }]
@@ -126,7 +126,7 @@ resource "aws_iam_role" "ecr_access" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:rhoai-demo:rhoai-ecr-sa"
+          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:ai-demo:rhoai-ecr-sa"
         }
       }
     }]
@@ -170,7 +170,7 @@ resource "aws_iam_role" "ssm_access" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:rhoai-demo:rhoai-ssm-sa"
+          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:ai-demo:rhoai-ssm-sa"
         }
       }
     }]

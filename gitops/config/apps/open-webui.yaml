@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: open-webui
-  namespace: rhoai-demo
+  namespace: ai-demo
   labels:
     app: open-webui
 spec:
@@ -25,11 +25,11 @@ spec:
         - name: WEBUI_SECRET_KEY
           value: "Demo1234#"
         - name: OPENAI_API_BASE_URL
-          value: "http://portkey.rhoai-demo.svc:8787/v1"
+          value: "http://portkey.ai-demo.svc:8787/v1"
         - name: OPENAI_API_KEY
           value: "demo-key"
         - name: MONGODB_URI
-          value: "mongodb://root:Demo1234#@mongodb.rhoai-demo.svc:27017"
+          value: "mongodb://root:Demo1234#@mongodb.ai-demo.svc:27017"
         - name: DEFAULT_MODELS
           value: "llama-3.1-8b"
         volumeMounts:
@@ -50,7 +50,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: open-webui-data
-  namespace: rhoai-demo
+  namespace: ai-demo
 spec:
   accessModes: [ReadWriteMany]
   storageClassName: efs-sc
@@ -62,7 +62,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: open-webui
-  namespace: rhoai-demo
+  namespace: ai-demo
 spec:
   selector:
     app: open-webui
@@ -74,7 +74,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: open-webui
-  namespace: rhoai-demo
+  namespace: ai-demo
 spec:
   to:
     kind: Service

@@ -6,7 +6,7 @@
 #    Phase 2: OCP 4.20 IPI Cluster (3 masters + workers + GPU pool)
 #    Phase 3: IAM/IRSA (OIDC + service account roles)
 #
-#  Domain: *.apps.rhoai-demo.iisdemolab.com
+#  Domain: *.apps.ai-demo.iisdemolab.com
 #  After terraform apply, deploy.sh runs GitOps bootstrap automatically.
 # =============================================================================
 

@@ -41,6 +41,6 @@ metadata:
   namespace: istio-system
 spec:
   members:
-  - rhoai-demo
+  - ai-demo
   - knative-serving
   - langchain

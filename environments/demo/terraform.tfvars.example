@@ -6,7 +6,7 @@
 # =============================================================================
 
 # ── Project ──────────────────────────────────────────────────────────────────
-project_name      = "rhoai-demo"
+project_name      = "ai"
 environment       = "demo"
 owner_tag         = "skumar@iisl.com"
 aws_region        = "us-east-1"

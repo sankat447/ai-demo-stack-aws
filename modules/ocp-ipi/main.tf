@@ -25,7 +25,7 @@ resource "local_file" "install_config" {
     worker_count = var.worker_count
     vpc_cidr     = var.vpc_cidr
     machine_cidr = var.vpc_cidr
-    subnet_ids   = jsonencode(concat(var.private_subnet_ids, var.public_subnet_ids))
+    subnet_ids   = []
     pull_secret  = var.pull_secret
     ssh_key      = var.ssh_public_key
     fips         = var.fips_enabled
@@ -215,7 +215,7 @@ OAUTH
 
       # Grant cluster-admin
       oc adm policy add-cluster-role-to-user cluster-admin admin
-      oc adm policy add-role-to-user admin developer -n rhoai-demo 2>/dev/null || true
+      oc adm policy add-role-to-user admin developer -n ai-demo 2>/dev/null || true
 
       echo "Users created:"
       echo "  admin     / ${var.admin_password}  (cluster-admin)"

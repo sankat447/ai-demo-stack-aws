@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rhoai-demo
+  name: ai-demo
   labels:
     app.kubernetes.io/part-of: ai-demo-stack
   annotations:

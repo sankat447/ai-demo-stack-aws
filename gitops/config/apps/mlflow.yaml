@@ -26,7 +26,7 @@ spec:
         - "--host=0.0.0.0"
         - "--port=5000"
         - "--backend-store-uri=postgresql://rhoai_admin:Demo1234#@$(AURORA_ENDPOINT):5432/rhoai_demo"
-        - "--default-artifact-root=s3://rhoai-demo-demo-data-lake/mlflow-artifacts/"
+        - "--default-artifact-root=s3://ai-demo-data-lake/mlflow-artifacts/"
         env:
         - name: AURORA_ENDPOINT
           valueFrom:

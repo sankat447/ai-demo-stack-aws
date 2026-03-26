@@ -23,13 +23,13 @@ spec:
         - containerPort: 8000
         env:
         - name: PORTKEY_GATEWAY_URL
-          value: "http://portkey.rhoai-demo.svc:8787"
+          value: "http://portkey.ai-demo.svc:8787"
         - name: PGVECTOR_CONNECTION_STRING
           value: "postgresql://rhoai_admin:Demo1234#@aurora-endpoint:5432/rhoai_demo"
         - name: AWS_DEFAULT_REGION
           value: "us-east-1"
         - name: S3_BUCKET
-          value: "rhoai-demo-demo-data-lake"
+          value: "ai-demo-data-lake"
         readinessProbe:
           httpGet:
             path: /health

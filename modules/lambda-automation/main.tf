@@ -80,7 +80,7 @@ import os
 def handler(event, context):
     """Scale OCP worker ASGs up or down based on the event action."""
     action = event.get('action', 'status')
-    cluster_name = os.environ.get('CLUSTER_NAME', 'rhoai-demo')
+    cluster_name = os.environ.get('CLUSTER_NAME', 'ai-demo')
     asg_client = boto3.client('autoscaling')
 
     # Find ASGs tagged with the cluster name

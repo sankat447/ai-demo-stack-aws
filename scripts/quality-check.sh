@@ -21,7 +21,7 @@ section "CHECK 1: AWS INFRASTRUCTURE"
 # =============================================================================
 
 # ── VPC ─────────────────────────────────────────────────────────────────────
-VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Project,Values=rhoai-demo" --profile "$AWS_PROFILE" --query 'Vpcs[0].VpcId' --output text 2>/dev/null || echo "None")
+VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Project,Values=ai" --profile "$AWS_PROFILE" --query 'Vpcs[0].VpcId' --output text 2>/dev/null || echo "None")
 if [[ "$VPC_ID" != "None" && -n "$VPC_ID" ]]; then
   VPC_CIDR=$(aws ec2 describe-vpcs --vpc-ids "$VPC_ID" --profile "$AWS_PROFILE" --query 'Vpcs[0].CidrBlock' --output text 2>/dev/null)
   log_ok "VPC: ${VPC_ID} (${VPC_CIDR})"
@@ -40,7 +40,7 @@ if [[ "$VPC_ID" != "None" ]]; then
 fi
 
 # ── NAT Gateway ─────────────────────────────────────────────────────────────
-NAT_STATE=$(aws ec2 describe-nat-gateways --filter "Name=tag:Project,Values=rhoai-demo" --profile "$AWS_PROFILE" --query 'NatGateways[0].State' --output text 2>/dev/null || echo "None")
+NAT_STATE=$(aws ec2 describe-nat-gateways --filter "Name=tag:Project,Values=ai" --profile "$AWS_PROFILE" --query 'NatGateways[0].State' --output text 2>/dev/null || echo "None")
 if [[ "$NAT_STATE" == "available" ]]; then
   log_ok "NAT Gateway: available"
 else
@@ -48,16 +48,16 @@ else
 fi
 
 # ── Aurora ──────────────────────────────────────────────────────────────────
-AURORA_STATUS=$(aws rds describe-db-clusters --profile "$AWS_PROFILE" --query "DBClusters[?contains(DBClusterIdentifier, 'rhoai-demo')].Status" --output text 2>/dev/null || echo "None")
+AURORA_STATUS=$(aws rds describe-db-clusters --profile "$AWS_PROFILE" --query "DBClusters[?contains(DBClusterIdentifier, 'ai-demo')].Status" --output text 2>/dev/null || echo "None")
 if [[ "$AURORA_STATUS" == "available" ]]; then
-  AURORA_ENDPOINT=$(aws rds describe-db-clusters --profile "$AWS_PROFILE" --query "DBClusters[?contains(DBClusterIdentifier, 'rhoai-demo')].Endpoint" --output text 2>/dev/null)
+  AURORA_ENDPOINT=$(aws rds describe-db-clusters --profile "$AWS_PROFILE" --query "DBClusters[?contains(DBClusterIdentifier, 'ai-demo')].Endpoint" --output text 2>/dev/null)
   log_ok "Aurora PostgreSQL: available (${AURORA_ENDPOINT})"
 else
   log_warn "Aurora PostgreSQL: ${AURORA_STATUS}"
 fi
 
 # ── EFS ─────────────────────────────────────────────────────────────────────
-EFS_COUNT=$(aws efs describe-file-systems --profile "$AWS_PROFILE" --query "FileSystems[?contains(Name, 'rhoai-demo')] | length(@)" --output text 2>/dev/null || echo "0")
+EFS_COUNT=$(aws efs describe-file-systems --profile "$AWS_PROFILE" --query "FileSystems[?contains(Name, 'ai-demo')] | length(@)" --output text 2>/dev/null || echo "0")
 if [[ "$EFS_COUNT" -gt 0 ]]; then
   log_ok "EFS: ${EFS_COUNT} file system(s)"
 else
@@ -65,15 +65,15 @@ else
 fi
 
 # ── S3 ──────────────────────────────────────────────────────────────────────
-if aws s3api head-bucket --bucket "rhoai-demo-demo-data-lake" --profile "$AWS_PROFILE" 2>/dev/null; then
-  FOLDER_COUNT=$(aws s3 ls s3://rhoai-demo-demo-data-lake/ --profile "$AWS_PROFILE" 2>/dev/null | wc -l | tr -d ' ')
+if aws s3api head-bucket --bucket "ai-demo-data-lake" --profile "$AWS_PROFILE" 2>/dev/null; then
+  FOLDER_COUNT=$(aws s3 ls s3://ai-demo-data-lake/ --profile "$AWS_PROFILE" 2>/dev/null | wc -l | tr -d ' ')
   log_ok "S3 data lake: exists (${FOLDER_COUNT} top-level items)"
 else
   log_warn "S3 data lake: not found"
 fi
 
 # ── ECR ─────────────────────────────────────────────────────────────────────
-ECR_COUNT=$(aws ecr describe-repositories --profile "$AWS_PROFILE" --query "repositories[?contains(repositoryName, 'rhoai-demo')] | length(@)" --output text 2>/dev/null || echo "0")
+ECR_COUNT=$(aws ecr describe-repositories --profile "$AWS_PROFILE" --query "repositories[?contains(repositoryName, 'ai-demo')] | length(@)" --output text 2>/dev/null || echo "0")
 if [[ "$ECR_COUNT" -ge 3 ]]; then
   log_ok "ECR repositories: ${ECR_COUNT}"
 else
@@ -81,7 +81,7 @@ else
 fi
 
 # ── Lambda ──────────────────────────────────────────────────────────────────
-LAMBDA_STATE=$(aws lambda get-function --function-name "rhoai-demo-demo-ocp-scheduler" --profile "$AWS_PROFILE" --query 'Configuration.State' --output text 2>/dev/null || echo "None")
+LAMBDA_STATE=$(aws lambda get-function --function-name "ai-demo-ocp-scheduler" --profile "$AWS_PROFILE" --query 'Configuration.State' --output text 2>/dev/null || echo "None")
 if [[ "$LAMBDA_STATE" == "Active" ]]; then
   log_ok "Lambda scheduler: Active"
 else
@@ -90,10 +90,10 @@ fi
 
 # ── IAM Roles ───────────────────────────────────────────────────────────────
 for ROLE in s3-access bedrock-access ecr-access ssm-access; do
-  if aws iam get-role --role-name "rhoai-demo-${ROLE}" --profile "$AWS_PROFILE" &>/dev/null; then
-    log_ok "IAM role: rhoai-demo-${ROLE}"
+  if aws iam get-role --role-name "ai-demo-${ROLE}" --profile "$AWS_PROFILE" &>/dev/null; then
+    log_ok "IAM role: ai-demo-${ROLE}"
   else
-    log_warn "IAM role: rhoai-demo-${ROLE} not found"
+    log_warn "IAM role: ai-demo-${ROLE} not found"
   fi
 done
 
@@ -188,7 +188,7 @@ section "CHECK 4: APPLICATIONS"
 if [[ -f "$KUBECONFIG_PATH" ]] && oc whoami &>/dev/null 2>&1; then
   export KUBECONFIG="$KUBECONFIG_PATH"
 
-  NAMESPACES=("rhoai-demo" "rhoai-mlflow" "rhoai-minio" "rhoai-monitoring" "rhoai-tools" "rhoai-sso" "vault" "langchain")
+  NAMESPACES=("ai-demo" "rhoai-mlflow" "rhoai-minio" "rhoai-monitoring" "rhoai-tools" "rhoai-sso" "vault" "langchain")
 
   for NS in "${NAMESPACES[@]}"; do
     if oc get namespace "$NS" &>/dev/null 2>&1; then
@@ -205,7 +205,7 @@ if [[ -f "$KUBECONFIG_PATH" ]] && oc whoami &>/dev/null 2>&1; then
   # Check routes
   echo ""
   log_info "Application Routes:"
-  for NS in rhoai-demo rhoai-minio rhoai-mlflow rhoai-monitoring rhoai-sso rhoai-tools vault langchain; do
+  for NS in ai-demo rhoai-minio rhoai-mlflow rhoai-monitoring rhoai-sso rhoai-tools vault langchain; do
     ROUTES=$(oc get routes -n "$NS" -o jsonpath='{range .items[*]}  {.metadata.name}: https://{.spec.host}{"\n"}{end}' 2>/dev/null || echo "")
     if [[ -n "$ROUTES" ]]; then
       echo "$ROUTES"

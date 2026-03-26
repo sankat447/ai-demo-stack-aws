@@ -231,7 +231,7 @@ cat > "${TFVARS_FILE}" << TFVARS
 # =============================================================================
 
 # ── Project ──────────────────────────────────────────────────────────────────
-project_name      = "rhoai-demo"
+project_name      = "ai"
 environment       = "demo"
 owner_tag         = "skumar@iisl.com"
 aws_region        = "us-east-1"
@@ -450,11 +450,11 @@ echo -e "${CYAN}Application URLs:${RESET}"
 echo -e "  OCP Console:      https://console-openshift-console.apps.${CLUSTER}.${DOMAIN}"
 echo -e "  ArgoCD:           https://openshift-gitops-server-openshift-gitops.apps.${CLUSTER}.${DOMAIN}"
 echo -e "  RHOAI Dashboard:  https://rhods-dashboard-redhat-ods-applications.apps.${CLUSTER}.${DOMAIN}"
-echo -e "  Open WebUI:       https://open-webui-rhoai-demo.apps.${CLUSTER}.${DOMAIN}"
-echo -e "  n8n:              https://n8n-rhoai-demo.apps.${CLUSTER}.${DOMAIN}"
+echo -e "  Open WebUI:       https://open-webui-ai-demo.apps.${CLUSTER}.${DOMAIN}"
+echo -e "  n8n:              https://n8n-ai-demo.apps.${CLUSTER}.${DOMAIN}"
 echo -e "  Grafana:          https://grafana-rhoai-monitoring.apps.${CLUSTER}.${DOMAIN}"
 echo -e "  Vault:            https://vault-vault.apps.${CLUSTER}.${DOMAIN}"
-echo -e "  Portkey:          https://portkey-rhoai-demo.apps.${CLUSTER}.${DOMAIN}"
+echo -e "  Portkey:          https://portkey-ai-demo.apps.${CLUSTER}.${DOMAIN}"
 echo -e "  MLflow:           https://mlflow-rhoai-mlflow.apps.${CLUSTER}.${DOMAIN}"
 echo -e "  Keycloak:         https://keycloak-rhoai-sso.apps.${CLUSTER}.${DOMAIN}"
 echo -e "  Kiali:            https://kiali-istio-system.apps.${CLUSTER}.${DOMAIN}"

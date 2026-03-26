@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
-  namespace: rhoai-demo
+  namespace: ai-demo
   labels:
     app: redis
 spec:
@@ -41,7 +41,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: redis-data
-  namespace: rhoai-demo
+  namespace: ai-demo
 spec:
   accessModes: [ReadWriteMany]
   storageClassName: efs-sc
@@ -53,7 +53,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis
-  namespace: rhoai-demo
+  namespace: ai-demo
 spec:
   selector:
     app: redis

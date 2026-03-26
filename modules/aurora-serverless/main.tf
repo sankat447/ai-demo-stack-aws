@@ -1,6 +1,6 @@
 # =============================================================================
 #  Aurora Serverless v2 PostgreSQL 16.4 + pgvector
-#  Cluster: rhoai-demo-db, DB: rhoai_demo, 0.5-4 ACU
+#  Cluster: ai-demo-db, DB: rhoai_demo, 0.5-4 ACU
 # =============================================================================
 
 resource "aws_db_subnet_group" "aurora" {
