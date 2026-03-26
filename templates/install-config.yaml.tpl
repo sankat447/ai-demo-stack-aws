@@ -39,6 +39,7 @@ platform:
   aws:
     region: ${aws_region}
     subnets: ${subnet_ids}
+credentialsMode: Passthrough
 publish: External
 fips: ${fips}
 pullSecret: '${replace(pull_secret, "'", "''")}'

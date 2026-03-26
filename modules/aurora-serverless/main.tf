@@ -75,25 +75,28 @@ resource "aws_rds_cluster_instance" "aurora" {
 
 # ── Store credentials in SSM Parameter Store ────────────────────────────────
 resource "aws_ssm_parameter" "db_endpoint" {
-  name  = "/${var.ssm_path_prefix}/aurora/endpoint"
-  type  = "String"
-  value = aws_rds_cluster.aurora.endpoint
+  name      = "/${var.ssm_path_prefix}/aurora/endpoint"
+  type      = "String"
+  value     = aws_rds_cluster.aurora.endpoint
+  overwrite = true
 
   tags = var.tags
 }
 
 resource "aws_ssm_parameter" "db_password" {
-  name  = "/${var.ssm_path_prefix}/aurora/master-password"
-  type  = "SecureString"
-  value = var.master_password
+  name      = "/${var.ssm_path_prefix}/aurora/master-password"
+  type      = "SecureString"
+  value     = var.master_password
+  overwrite = true
 
   tags = var.tags
 }
 
 resource "aws_ssm_parameter" "db_name" {
-  name  = "/${var.ssm_path_prefix}/aurora/database-name"
-  type  = "String"
-  value = var.database_name
+  name      = "/${var.ssm_path_prefix}/aurora/database-name"
+  type      = "String"
+  value     = var.database_name
+  overwrite = true
 
   tags = var.tags
 }

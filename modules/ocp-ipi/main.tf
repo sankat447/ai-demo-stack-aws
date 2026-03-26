@@ -43,68 +43,34 @@ resource "null_resource" "ocp_install" {
       INSTALL_DIR="${local.install_dir}"
 
       # ── Resolve AWS SSO credentials for openshift-install ────────────────
-      # openshift-install does NOT support AWS SSO profiles. It needs either:
-      #   a) env vars AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + AWS_SESSION_TOKEN
-      #   b) a standard ~/.aws/credentials file
-      # We resolve the SSO session to a temp credentials file.
+      # openshift-install requires env vars (not SSO profiles, not credential files).
+      # Extract from the AWS CLI cache where SSO stores resolved role credentials.
       echo "Resolving AWS SSO credentials for openshift-install..."
 
-      # Get the resolved credentials via STS (works with any SSO/role-based profile)
       CALLER=$(aws sts get-caller-identity --profile "${var.aws_profile}" --output json 2>/dev/null)
       echo "Authenticated as: $(echo "$CALLER" | jq -r '.Arn')"
 
-      # Write a temporary credentials file from the SSO cache
-      TEMP_CREDS_FILE="$INSTALL_DIR/.aws-credentials"
-      mkdir -p "$(dirname "$TEMP_CREDS_FILE")"
-
-      python3 -c "
+      # Extract credentials from AWS CLI cache into env vars
+      eval "$(python3 -c "
 import json, glob, os
-
-# Find the SSO cache token
-sso_cache = os.path.expanduser('~/.aws/sso/cache')
-creds_cache = os.path.expanduser('~/.aws/cli/cache')
-
-# Try CLI cache first (contains resolved role credentials)
-best_creds = None
-for cache_dir in [creds_cache, sso_cache]:
-    if not os.path.isdir(cache_dir):
-        continue
+for cache_dir in [os.path.expanduser('~/.aws/cli/cache'), os.path.expanduser('~/.aws/sso/cache')]:
+    if not os.path.isdir(cache_dir): continue
     for f in sorted(glob.glob(os.path.join(cache_dir, '*.json')), key=os.path.getmtime, reverse=True):
         try:
-            data = json.load(open(f))
-            if 'Credentials' in data:
-                c = data['Credentials']
-                if 'AccessKeyId' in c:
-                    best_creds = c
-                    break
-        except:
-            continue
-    if best_creds:
-        break
+            c = json.load(open(f)).get('Credentials', {})
+            if 'AccessKeyId' in c:
+                print(f'export AWS_ACCESS_KEY_ID={c[\"AccessKeyId\"]}')
+                print(f'export AWS_SECRET_ACCESS_KEY={c[\"SecretAccessKey\"]}')
+                if 'SessionToken' in c: print(f'export AWS_SESSION_TOKEN={c[\"SessionToken\"]}')
+                exit(0)
+        except: pass
+exit(1)
+" 2>/dev/null)" || { echo "FATAL: Cannot extract AWS credentials from cache"; exit 1; }
 
-if best_creds:
-    print(f'[default]')
-    print(f'aws_access_key_id = {best_creds[\"AccessKeyId\"]}')
-    print(f'aws_secret_access_key = {best_creds[\"SecretAccessKey\"]}')
-    if 'SessionToken' in best_creds:
-        print(f'aws_session_token = {best_creds[\"SessionToken\"]}')
-else:
-    print('ERROR: No cached credentials found', file=__import__('sys').stderr)
-    exit(1)
-" > "$TEMP_CREDS_FILE" 2>&1
-
-      if [[ -s "$TEMP_CREDS_FILE" ]] && grep -q "aws_access_key_id" "$TEMP_CREDS_FILE"; then
-        export AWS_SHARED_CREDENTIALS_FILE="$TEMP_CREDS_FILE"
-        export AWS_PROFILE="default"
-        KEY_ID=$(grep aws_access_key_id "$TEMP_CREDS_FILE" | awk -F= '{print $2}' | tr -d ' ' | cut -c1-8)
-        echo "Credentials written to temp file (Key: $${KEY_ID}...)"
-      else
-        echo "WARNING: Could not extract cached credentials"
-        cat "$TEMP_CREDS_FILE" 2>/dev/null
-        export AWS_PROFILE="${var.aws_profile}"
-      fi
-
+      # Clear profile/config to force env var usage only
+      unset AWS_PROFILE AWS_SHARED_CREDENTIALS_FILE AWS_CONFIG_FILE 2>/dev/null || true
       export AWS_DEFAULT_REGION="${var.aws_region}"
+      echo "Credentials exported as env vars (Key: $${AWS_ACCESS_KEY_ID:0:8}...)"
 
       # ── Skip if cluster already exists ───────────────────────────────────
       if [[ -f "$INSTALL_DIR/auth/kubeconfig" ]]; then

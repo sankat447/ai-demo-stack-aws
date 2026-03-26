@@ -48,9 +48,10 @@ resource "aws_efs_access_point" "rhoai_notebooks" {
 
 # ── Store EFS ID in SSM ─────────────────────────────────────────────────────
 resource "aws_ssm_parameter" "efs_id" {
-  name  = "/${var.ssm_path_prefix}/efs/file-system-id"
-  type  = "String"
-  value = aws_efs_file_system.main.id
+  name      = "/${var.ssm_path_prefix}/efs/file-system-id"
+  type      = "String"
+  value     = aws_efs_file_system.main.id
+  overwrite = true
 
   tags = var.tags
 }
