@@ -105,46 +105,46 @@ output "efs_sg_id" {
   value       = module.security_groups.efs_sg_id
 }
 
-# ── OCP Cluster ──────────────────────────────────────────────────────────────
+# ── OCP Cluster (created when pull_secret is set) ────────────────────────────
 output "ocp_api_url" {
   description = "OCP API URL"
-  value       = module.ocp.api_url
+  value       = length(module.ocp) > 0 ? module.ocp[0].api_url : "(pending OCP install)"
 }
 
 output "ocp_console_url" {
   description = "OCP Console URL"
-  value       = module.ocp.console_url
+  value       = length(module.ocp) > 0 ? module.ocp[0].console_url : "(pending OCP install)"
 }
 
 output "ocp_apps_domain" {
   description = "OCP wildcard apps domain"
-  value       = module.ocp.apps_domain
+  value       = length(module.ocp) > 0 ? module.ocp[0].apps_domain : "(pending OCP install)"
 }
 
 output "ocp_kubeconfig_path" {
   description = "Path to kubeconfig"
-  value       = module.ocp.kubeconfig_path
+  value       = length(module.ocp) > 0 ? module.ocp[0].kubeconfig_path : "(pending OCP install)"
 }
 
-# ── IAM / IRSA ───────────────────────────────────────────────────────────────
+# ── IAM / IRSA (created after OCP cluster is running) ────────────────────────
 output "irsa_s3_role_arn" {
   description = "IRSA role for S3 access"
-  value       = module.iam_irsa.s3_role_arn
+  value       = length(module.iam_irsa) > 0 ? module.iam_irsa[0].s3_role_arn : "(pending OCP install)"
 }
 
 output "irsa_bedrock_role_arn" {
   description = "IRSA role for Bedrock access"
-  value       = module.iam_irsa.bedrock_role_arn
+  value       = length(module.iam_irsa) > 0 ? module.iam_irsa[0].bedrock_role_arn : "(pending OCP install)"
 }
 
 output "irsa_ecr_role_arn" {
   description = "IRSA role for ECR access"
-  value       = module.iam_irsa.ecr_role_arn
+  value       = length(module.iam_irsa) > 0 ? module.iam_irsa[0].ecr_role_arn : "(pending OCP install)"
 }
 
 output "irsa_ssm_role_arn" {
   description = "IRSA role for SSM access"
-  value       = module.iam_irsa.ssm_role_arn
+  value       = length(module.iam_irsa) > 0 ? module.iam_irsa[0].ssm_role_arn : "(pending OCP install)"
 }
 
 # ── Application URLs (after GitOps deployment) ──────────────────────────────

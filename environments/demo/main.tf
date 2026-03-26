@@ -145,12 +145,13 @@ module "lambda" {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MODULE 9: OCP 4.20 IPI Cluster
-# Automatic: creates install-config, runs openshift-install, sets up admin user
-# REQUIRES: pull_secret set in terraform.tfvars
+# MODULE 9: OCP 4.21 IPI Cluster
+# Gated on pull_secret — skipped if empty (first run without pull secret).
+# deploy.sh always sets pull_secret, so this runs on every deploy.
 # ─────────────────────────────────────────────────────────────────────────────
 module "ocp" {
   source = "../../modules/ocp-ipi"
+  count  = var.pull_secret != "" ? 1 : 0
 
   cluster_name         = var.cluster_name
   base_domain          = var.base_domain
@@ -176,10 +177,15 @@ module "ocp" {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODULE 10: Compute MachineSets (additional worker pools)
-# Applied automatically after cluster is ready
+# Gated on OCP cluster being installed (kubeconfig must exist)
 # ─────────────────────────────────────────────────────────────────────────────
+locals {
+  ocp_installed = length(module.ocp) > 0
+}
+
 module "compute" {
   source = "../../modules/compute"
+  count  = local.ocp_installed ? 1 : 0
 
   cluster_name          = var.cluster_name
   infrastructure_id     = trimspace(try(file("${path.module}/ocp-install-dir/${var.cluster_name}/infrastructure-id"), var.cluster_name))
@@ -189,7 +195,7 @@ module "compute" {
   compute_max_replicas  = var.compute_max_replicas
   gpu_instance_type     = var.gpu_instance_type
   gpu_max_replicas      = var.gpu_max_replicas
-  kubeconfig_path       = module.ocp.kubeconfig_path
+  kubeconfig_path       = module.ocp[0].kubeconfig_path
   output_dir            = "${path.module}/generated"
 
   tags       = local.tags
@@ -198,18 +204,27 @@ module "compute" {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODULE 11: IAM / IRSA
-# Uses the OCP cluster's OIDC issuer URL for service account federation
+# Requires OCP cluster OIDC issuer URL — only created after cluster is running.
+# On first deploy: skipped (count=0). After OCP install writes oidc-issuer-url
+# file, second terraform apply creates the IRSA roles automatically.
 # ─────────────────────────────────────────────────────────────────────────────
+locals {
+  oidc_url_from_file = trimspace(try(file("${path.module}/ocp-install-dir/${var.cluster_name}/oidc-issuer-url"), ""))
+  oidc_url           = local.oidc_url_from_file != "" ? local.oidc_url_from_file : var.oidc_issuer_url
+  irsa_enabled       = local.oidc_url != ""
+}
+
 module "iam_irsa" {
   source = "../../modules/iam-irsa"
+  count  = local.irsa_enabled ? 1 : 0
 
   cluster_name          = var.cluster_name
   aws_region            = var.aws_region
-  oidc_issuer_url       = trimspace(try(file("${path.module}/ocp-install-dir/${var.cluster_name}/oidc-issuer-url"), var.oidc_issuer_url))
+  oidc_issuer_url       = local.oidc_url
   s3_bucket_arn         = module.s3.bucket_arn
   enable_bedrock_access = var.enable_bedrock_access
   ssm_path_prefix       = local.name
 
   tags       = local.tags
-  depends_on = [module.ocp, module.s3]
+  depends_on = [module.s3]
 }
