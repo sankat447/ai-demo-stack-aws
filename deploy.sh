@@ -210,16 +210,20 @@ else
   log_ok "Pull secret saved to ${PULL_SECRET_FILE} (reused on future deploys)"
 fi
 
-# ── 0.4c: SSH Key (optional, auto-detect) ──────────────────────────────────
+# ── 0.4c: SSH Key (required — prevents installer interactive prompts) ──────
 SSH_KEY=""
-for KEY_FILE in ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub; do
+for KEY_FILE in ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub ~/.ssh/id_ecdsa.pub; do
   if [[ -f "$KEY_FILE" ]]; then
     SSH_KEY=$(cat "$KEY_FILE")
     log_ok "SSH key auto-detected: ${KEY_FILE}"
     break
   fi
 done
-[[ -z "$SSH_KEY" ]] && log_warn "No SSH key found — node debug access disabled (not required)"
+if [[ -z "$SSH_KEY" ]]; then
+  log_error "No SSH public key found in ~/.ssh/ — required for OCP install"
+  log_error "Generate one with: ssh-keygen -t ed25519"
+  exit 1
+fi
 
 # ── 0.4d: Auto-generate terraform.tfvars ───────────────────────────────────
 log_info "Generating terraform.tfvars..."

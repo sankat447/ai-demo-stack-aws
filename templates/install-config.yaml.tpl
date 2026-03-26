@@ -42,6 +42,4 @@ credentialsMode: Passthrough
 publish: External
 fips: ${fips}
 pullSecret: '${replace(pull_secret, "'", "''")}'
-%{ if ssh_key != "" ~}
 sshKey: '${ssh_key}'
-%{ endif ~}

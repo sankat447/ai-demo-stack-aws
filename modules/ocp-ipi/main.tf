@@ -95,13 +95,26 @@ exit(1)
       # Backup install-config (openshift-install consumes it)
       cp "$INSTALL_DIR/install-config.yaml" "$INSTALL_DIR/install-config.yaml.bak"
 
-      # Run the installer with error handling
+      # Validate install-config has all required fields (prevents interactive prompts)
+      for FIELD in baseDomain pullSecret platform sshKey; do
+        if ! grep -q "^${FIELD}:" "$INSTALL_DIR/install-config.yaml" && \
+           ! grep -q "^${FIELD}: " "$INSTALL_DIR/install-config.yaml"; then
+          echo "FATAL: install-config.yaml missing required field: $FIELD"
+          echo "This would cause the installer to prompt interactively and hang."
+          exit 1
+        fi
+      done
+      echo "install-config.yaml validated — all required fields present."
+
+      # Run the installer — DO NOT pipe through tee!
+      # Piping hides interactive prompts and causes silent hangs.
+      # The installer writes its own log to .openshift_install.log in the dir.
       if openshift-install create cluster \
         --dir="$INSTALL_DIR" \
-        --log-level=info 2>&1 | tee "$INSTALL_DIR/install.log"; then
+        --log-level=info; then
         echo "OCP installation completed successfully."
       else
-        echo "ERROR: OCP installation failed. Check $INSTALL_DIR/install.log"
+        echo "ERROR: OCP installation failed. Check $INSTALL_DIR/.openshift_install.log"
         echo "To retry: openshift-install create cluster --dir=$INSTALL_DIR --log-level=debug"
         exit 1
       fi
