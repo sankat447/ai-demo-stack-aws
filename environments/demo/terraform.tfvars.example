@@ -1,0 +1,55 @@
+# =============================================================================
+#  AI Demo Stack — Configuration
+#  Copy this file: cp terraform.tfvars.example terraform.tfvars
+#  Only edit owner_tag, budget_alert_email, and pull_secret.
+#  Everything else has production-ready defaults.
+# =============================================================================
+
+# ── Project ──────────────────────────────────────────────────────────────────
+project_name      = "rhoai-demo"
+environment       = "demo"
+owner_tag         = "skumar@iisl.com"
+aws_region        = "us-east-1"
+aws_profile       = "rhoai-demo"
+
+# ── OCP Cluster ──────────────────────────────────────────────────────────────
+# Domain: *.apps.ai-demo.iisdemolab.click
+# Console: console-openshift-console.apps.ai-demo.iisdemolab.click
+# API:     api.ai-demo.iisdemolab.click:6443
+# NOTE: Named "ai-demo" (not "rhoai-demo") to avoid conflict with existing ROSA cluster
+cluster_name      = "ai-demo"
+base_domain       = "iisdemolab.click"
+ocp_version       = "4.20.17"
+
+# ── Compute ──────────────────────────────────────────────────────────────────
+master_instance_type         = "m5.xlarge"
+master_count                 = 3
+initial_worker_instance_type = "m5.xlarge"
+initial_worker_count         = 2
+compute_instance_type        = "c5.2xlarge"
+compute_min_replicas         = 1
+compute_max_replicas         = 4
+gpu_instance_type            = "g4dn.xlarge"
+gpu_max_replicas             = 1
+
+# ── Aurora ───────────────────────────────────────────────────────────────────
+db_name               = "rhoai_demo"
+db_master_username    = "rhoai_admin"
+db_master_password    = "@Demo123#"
+aurora_engine_version = "16.4"
+aurora_min_acu        = 0.5
+aurora_max_acu        = 4
+
+# ── Automation ───────────────────────────────────────────────────────────────
+budget_alert_email = "skumar@iisl.com"
+monthly_budget_usd = 700
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+# REQUIRED: Download from https://console.redhat.com/openshift/install/pull-secret
+# pull_secret = "<paste entire JSON pull secret here>"
+
+# OPTIONAL: SSH key for node debug access
+# ssh_public_key = "<paste your ~/.ssh/id_rsa.pub here>"
+
+# Default password for all services (Aurora, ArgoCD, Grafana, Vault, etc.)
+admin_password = "@Demo123#"

@@ -1,0 +1,46 @@
+---
+apiVersion: maistra.io/v2
+kind: ServiceMeshControlPlane
+metadata:
+  name: basic
+  namespace: istio-system
+spec:
+  version: v2.6
+  tracing:
+    type: Jaeger
+    sampling: 10000
+  addons:
+    jaeger:
+      install:
+        storage:
+          type: Memory
+    kiali:
+      enabled: true
+    grafana:
+      enabled: false
+    prometheus:
+      enabled: true
+  gateways:
+    ingress:
+      service:
+        type: ClusterIP
+    egress:
+      enabled: false
+  proxy:
+    accessLogging:
+      file:
+        name: /dev/stdout
+  security:
+    dataPlane:
+      mtls: true
+---
+apiVersion: maistra.io/v1
+kind: ServiceMeshMemberRoll
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  members:
+  - rhoai-demo
+  - knative-serving
+  - langchain

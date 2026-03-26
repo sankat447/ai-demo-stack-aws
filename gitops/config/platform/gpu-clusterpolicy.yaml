@@ -1,0 +1,44 @@
+---
+apiVersion: nvidia.com/v1
+kind: ClusterPolicy
+metadata:
+  name: gpu-cluster-policy
+spec:
+  operator:
+    defaultRuntime: crio
+  driver:
+    enabled: true
+    repoConfig:
+      configMapName: ""
+    certConfig:
+      name: ""
+    licensingConfig:
+      configMapName: ""
+    virtualTopology:
+      config: ""
+    # Let the GPU Operator auto-select the correct driver for the RHCOS kernel
+    # Do NOT hardcode version — avoids OCP 4.17-style driver mismatch issues
+  toolkit:
+    enabled: true
+    installDir: /usr/local/nvidia
+  devicePlugin:
+    enabled: true
+  dcgm:
+    enabled: true
+  dcgmExporter:
+    enabled: true
+    config:
+      name: ""
+  gfd:
+    enabled: true
+  migManager:
+    enabled: false
+  nodeStatusExporter:
+    enabled: true
+  mig:
+    strategy: single
+  validator:
+    plugin:
+      env:
+      - name: WITH_WORKLOAD
+        value: "false"

@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gpu-operator-resources
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-nfd
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-serverless
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knative-serving
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-auth
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-minio
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-mlflow
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-sso
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack

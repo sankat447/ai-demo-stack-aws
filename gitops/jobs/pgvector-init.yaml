@@ -1,0 +1,31 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pgvector-init
+  namespace: rhoai-demo
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+      - name: psql
+        image: docker.io/library/postgres:16
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Initializing pgvector extension..."
+          PGPASSWORD='@Demo123#' psql -h ${AURORA_ENDPOINT:-aurora-endpoint} -U rhoai_admin -d rhoai_demo -c "CREATE EXTENSION IF NOT EXISTS vector;" || true
+          PGPASSWORD='@Demo123#' psql -h ${AURORA_ENDPOINT:-aurora-endpoint} -U rhoai_admin -d rhoai_demo -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;" || true
+          echo "pgvector initialized."
+        env:
+        - name: AURORA_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: aurora-credentials
+              key: endpoint
+              optional: true
+      restartPolicy: OnFailure
+  backoffLimit: 3

@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudbeaver
+  namespace: rhoai-tools
+  labels:
+    app: cloudbeaver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudbeaver
+  template:
+    metadata:
+      labels:
+        app: cloudbeaver
+    spec:
+      containers:
+      - name: cloudbeaver
+        image: docker.io/dbeaver/cloudbeaver:latest
+        ports:
+        - containerPort: 8978
+        volumeMounts:
+        - name: workspace
+          mountPath: /opt/cloudbeaver/workspace
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 8978
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      volumes:
+      - name: workspace
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudbeaver
+  namespace: rhoai-tools
+spec:
+  selector:
+    app: cloudbeaver
+  ports:
+  - port: 8978
+    targetPort: 8978
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cloudbeaver
+  namespace: rhoai-tools
+spec:
+  to:
+    kind: Service
+    name: cloudbeaver
+  port:
+    targetPort: 8978
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

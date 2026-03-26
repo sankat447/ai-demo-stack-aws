@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langchain-server
+  namespace: langchain
+  labels:
+    app: langchain-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langchain-server
+  template:
+    metadata:
+      labels:
+        app: langchain-server
+    spec:
+      containers:
+      - name: langchain-server
+        image: langchain/langserve:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PORTKEY_GATEWAY_URL
+          value: "http://portkey.rhoai-demo.svc:8787"
+        - name: PGVECTOR_CONNECTION_STRING
+          value: "postgresql://rhoai_admin:@Demo123#@aurora-endpoint:5432/rhoai_demo"
+        - name: AWS_DEFAULT_REGION
+          value: "us-east-1"
+        - name: S3_BUCKET
+          value: "rhoai-demo-demo-data-lake"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langchain-server
+  namespace: langchain
+spec:
+  selector:
+    app: langchain-server
+  ports:
+  - port: 8000
+    targetPort: 8000
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: langchain-server
+  namespace: langchain
+spec:
+  to:
+    kind: Service
+    name: langchain-server
+  port:
+    targetPort: 8000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

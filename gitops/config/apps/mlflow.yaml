@@ -1,0 +1,77 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: rhoai-mlflow
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:v2.12.1
+        ports:
+        - containerPort: 5000
+        command: ["mlflow", "server"]
+        args:
+        - "--host=0.0.0.0"
+        - "--port=5000"
+        - "--backend-store-uri=postgresql://rhoai_admin:@Demo123#@$(AURORA_ENDPOINT):5432/rhoai_demo"
+        - "--default-artifact-root=s3://rhoai-demo-demo-data-lake/mlflow-artifacts/"
+        env:
+        - name: AURORA_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: aurora-credentials
+              key: endpoint
+              optional: true
+        - name: AWS_DEFAULT_REGION
+          value: "us-east-1"
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: "http://minio.rhoai-minio.svc:9000"
+        - name: AWS_ACCESS_KEY_ID
+          value: "minioadmin"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "@Demo123#"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: rhoai-mlflow
+spec:
+  selector:
+    app: mlflow
+  ports:
+  - port: 5000
+    targetPort: 5000
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mlflow
+  namespace: rhoai-mlflow
+spec:
+  to:
+    kind: Service
+    name: mlflow
+  port:
+    targetPort: 5000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

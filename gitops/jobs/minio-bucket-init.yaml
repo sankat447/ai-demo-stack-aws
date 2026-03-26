@@ -1,0 +1,30 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bucket-init
+  namespace: rhoai-minio
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+      - name: mc
+        image: quay.io/minio/mc:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Waiting for MinIO..."
+          until mc alias set minio http://minio.rhoai-minio.svc:9000 minioadmin '@Demo123#' 2>/dev/null; do
+            sleep 5
+          done
+          echo "MinIO is ready. Creating buckets..."
+          mc mb --ignore-existing minio/pipeline-artifacts
+          mc mb --ignore-existing minio/rhoai-models
+          mc mb --ignore-existing minio/mlflow-artifacts
+          mc mb --ignore-existing minio/notebook-data
+          echo "Buckets created."
+      restartPolicy: OnFailure
+  backoffLimit: 3

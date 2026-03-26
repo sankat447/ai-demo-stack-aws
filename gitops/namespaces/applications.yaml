@@ -1,0 +1,37 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-demo
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+  annotations:
+    openshift.io/description: "Main AI demo workloads"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: langchain
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-monitoring
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-tools
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-pipelines
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack

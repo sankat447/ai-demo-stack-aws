@@ -1,0 +1,59 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portkey
+  namespace: rhoai-demo
+  labels:
+    app: portkey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portkey
+  template:
+    metadata:
+      labels:
+        app: portkey
+    spec:
+      containers:
+      - name: portkey
+        image: portkeyai/gateway:latest
+        ports:
+        - containerPort: 8787
+        env:
+        - name: PORTKEY_LOG_LEVEL
+          value: "info"
+        readinessProbe:
+          httpGet:
+            path: /v1/health
+            port: 8787
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portkey
+  namespace: rhoai-demo
+spec:
+  selector:
+    app: portkey
+  ports:
+  - port: 8787
+    targetPort: 8787
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: portkey
+  namespace: rhoai-demo
+spec:
+  to:
+    kind: Service
+    name: portkey
+  port:
+    targetPort: 8787
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
