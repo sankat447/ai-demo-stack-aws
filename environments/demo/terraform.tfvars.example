@@ -19,7 +19,7 @@ aws_profile       = "rhoai-demo"
 # NOTE: Named "ai-demo" (not "rhoai-demo") to avoid conflict with existing ROSA cluster
 cluster_name      = "ai-demo"
 base_domain       = "iisdemolab.click"
-ocp_version       = "4.20.17"
+ocp_version       = "4.21.6"
 
 # ── Compute ──────────────────────────────────────────────────────────────────
 master_instance_type         = "m5.xlarge"

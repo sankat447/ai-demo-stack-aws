@@ -11,7 +11,7 @@ variable "base_domain" {
 variable "ocp_version" {
   description = "OpenShift version (e.g., 4.20.17)"
   type        = string
-  default     = "4.20.17"
+  default     = "4.21.6"
 }
 
 variable "aws_region" {

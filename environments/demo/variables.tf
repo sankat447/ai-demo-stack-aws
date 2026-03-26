@@ -79,7 +79,7 @@ variable "base_domain" {
 variable "ocp_version" {
   description = "OpenShift version (4.20.x stable)"
   type        = string
-  default     = "4.20.17"
+  default     = "4.21.6"
 }
 
 variable "master_instance_type" {
