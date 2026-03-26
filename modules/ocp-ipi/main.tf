@@ -42,7 +42,37 @@ resource "null_resource" "ocp_install" {
       set -euo pipefail
       INSTALL_DIR="${local.install_dir}"
 
-      # Skip if cluster already exists and kubeconfig is present
+      # ── Resolve AWS SSO credentials to env vars ──────────────────────────
+      # openshift-install does NOT support AWS SSO profiles directly.
+      # We must export resolved access keys from the SSO session.
+      echo "Resolving AWS SSO credentials for openshift-install..."
+      eval $(aws configure export-credentials --profile "${var.aws_profile}" --format env 2>/dev/null || true)
+
+      # Fallback: if export-credentials not available (older CLI), use sts
+      if [[ -z "$${AWS_ACCESS_KEY_ID:-}" ]]; then
+        echo "Using sts get-session-token fallback..."
+        CREDS_JSON=$(aws sts get-session-token --profile "${var.aws_profile}" --output json 2>/dev/null || echo "")
+        if [[ -n "$CREDS_JSON" ]]; then
+          export AWS_ACCESS_KEY_ID=$(echo "$CREDS_JSON" | jq -r '.Credentials.AccessKeyId')
+          export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS_JSON" | jq -r '.Credentials.SecretAccessKey')
+          export AWS_SESSION_TOKEN=$(echo "$CREDS_JSON" | jq -r '.Credentials.SessionToken')
+        fi
+      fi
+
+      # Final fallback: extract from SSO cache
+      if [[ -z "$${AWS_ACCESS_KEY_ID:-}" ]]; then
+        echo "Extracting credentials from SSO cache..."
+        ROLE_CREDS=$(aws sts get-caller-identity --profile "${var.aws_profile}" --query "Arn" --output text 2>/dev/null)
+        if [[ -n "$ROLE_CREDS" ]]; then
+          # Re-export using the profile — terraform already authenticated
+          export AWS_PROFILE="${var.aws_profile}"
+        fi
+      fi
+
+      export AWS_DEFAULT_REGION="${var.aws_region}"
+      echo "AWS credentials resolved for region ${var.aws_region}"
+
+      # ── Skip if cluster already exists ───────────────────────────────────
       if [[ -f "$INSTALL_DIR/auth/kubeconfig" ]]; then
         echo "Cluster already installed (kubeconfig exists). Skipping installation."
         export KUBECONFIG="$INSTALL_DIR/auth/kubeconfig"
@@ -90,8 +120,7 @@ resource "null_resource" "ocp_install" {
       done
     EOT
     environment = {
-      AWS_PROFILE = var.aws_profile
-      HOME        = pathexpand("~")
+      HOME = pathexpand("~")
     }
   }
 

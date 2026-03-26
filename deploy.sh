@@ -371,7 +371,8 @@ while [[ $ATTEMPT -lt $MAX_ATTEMPTS ]]; do
     break
   fi
 
-  if grep -qi "expired\|unauthorized\|credentials\|token" "$APPLY_LOG" 2>/dev/null; then
+  # Only match actual AWS/SSO auth errors, not words like "credentials" in resource names
+  if grep -qi "ExpiredToken\|session expired\|SSO session\|InvalidIdentityToken\|not authorized to perform\|security token.*expired" "$APPLY_LOG" 2>/dev/null; then
     log_warn "Auth error detected — re-authenticating..."
     aws_sso_login
     redhat_sso_login
