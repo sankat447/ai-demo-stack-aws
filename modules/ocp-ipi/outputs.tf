@@ -4,8 +4,8 @@ output "kubeconfig_path" {
 }
 
 output "kubeadmin_password" {
-  description = "kubeadmin password"
-  value       = try(data.local_file.kubeadmin_password.content, "")
+  description = "kubeadmin password (read from file after install)"
+  value       = try(file("${local.install_dir}/auth/kubeadmin-password"), "(pending install)")
   sensitive   = true
 }
 

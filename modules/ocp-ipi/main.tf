@@ -297,8 +297,4 @@ resource "null_resource" "extract_oidc" {
   }
 }
 
-# ── Read outputs from install directory ─────────────────────────────────────
-data "local_file" "kubeadmin_password" {
-  depends_on = [null_resource.ocp_install]
-  filename   = "${local.install_dir}/auth/kubeadmin-password"
-}
+# ── Outputs read from install directory (only if files exist) ──────────────
