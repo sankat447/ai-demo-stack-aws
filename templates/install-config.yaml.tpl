@@ -38,7 +38,7 @@ networking:
 platform:
   aws:
     region: ${aws_region}
-credentialsMode: Passthrough
+credentialsMode: Manual
 publish: External
 fips: ${fips}
 pullSecret: '${replace(pull_secret, "'", "''")}'

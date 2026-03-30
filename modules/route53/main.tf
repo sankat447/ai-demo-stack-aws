@@ -1,14 +1,10 @@
 # =============================================================================
 #  Route53 Hosted Zone for OCP cluster domain
 #  OCP IPI installer requires a hosted zone matching the base_domain
+#  Use the EXISTING registrar-created zone — do NOT create a duplicate
 # =============================================================================
 
-resource "aws_route53_zone" "cluster" {
-  name          = var.base_domain
-  comment       = "AI Demo Stack - OCP cluster domain"
-  force_destroy = true
-
-  tags = merge(var.tags, {
-    Name = "${var.name}-dns"
-  })
+data "aws_route53_zone" "cluster" {
+  name         = var.base_domain
+  private_zone = false
 }

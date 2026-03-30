@@ -42,35 +42,17 @@ resource "null_resource" "ocp_install" {
       set -euo pipefail
       INSTALL_DIR="${local.install_dir}"
 
-      # ── Resolve AWS SSO credentials for openshift-install ────────────────
-      # openshift-install requires env vars (not SSO profiles, not credential files).
-      # Extract from the AWS CLI cache where SSO stores resolved role credentials.
-      echo "Resolving AWS SSO credentials for openshift-install..."
-
-      CALLER=$(aws sts get-caller-identity --profile "${var.aws_profile}" --output json 2>/dev/null)
-      echo "Authenticated as: $(echo "$CALLER" | jq -r '.Arn')"
-
-      # Extract credentials from AWS CLI cache into env vars
-      eval "$(python3 -c "
-import json, glob, os
-for cache_dir in [os.path.expanduser('~/.aws/cli/cache'), os.path.expanduser('~/.aws/sso/cache')]:
-    if not os.path.isdir(cache_dir): continue
-    for f in sorted(glob.glob(os.path.join(cache_dir, '*.json')), key=os.path.getmtime, reverse=True):
-        try:
-            c = json.load(open(f)).get('Credentials', {})
-            if 'AccessKeyId' in c:
-                print(f'export AWS_ACCESS_KEY_ID={c[\"AccessKeyId\"]}')
-                print(f'export AWS_SECRET_ACCESS_KEY={c[\"SecretAccessKey\"]}')
-                if 'SessionToken' in c: print(f'export AWS_SESSION_TOKEN={c[\"SessionToken\"]}')
-                exit(0)
-        except: pass
-exit(1)
-" 2>/dev/null)" || { echo "FATAL: Cannot extract AWS credentials from cache"; exit 1; }
-
-      # Clear profile/config to force env var usage only
-      unset AWS_PROFILE AWS_SHARED_CREDENTIALS_FILE AWS_CONFIG_FILE 2>/dev/null || true
+      # ── Export AWS credentials from SSO profile ──────────────────────────
+      # openshift-install rejects SSO profiles and raw session tokens.
+      # Use 'aws configure export-credentials' to get resolved credentials
+      # that work with credentialsMode: Manual.
+      echo "Resolving AWS credentials from SSO profile..."
+      eval "$(aws configure export-credentials --profile "${var.aws_profile}" --format env)"
+      unset AWS_PROFILE 2>/dev/null || true
       export AWS_DEFAULT_REGION="${var.aws_region}"
-      echo "Credentials exported as env vars (Key: $${AWS_ACCESS_KEY_ID:0:8}...)"
+
+      CALLER=$(aws sts get-caller-identity --output json 2>/dev/null)
+      echo "Authenticated as: $(echo "$CALLER" | jq -r '.Arn')"
 
       # ── Skip if cluster already exists ───────────────────────────────────
       if [[ -f "$INSTALL_DIR/auth/kubeconfig" ]]; then
@@ -97,8 +79,8 @@ exit(1)
 
       # Validate install-config has all required fields (prevents interactive prompts)
       for FIELD in baseDomain pullSecret platform sshKey; do
-        if ! grep -q "^${FIELD}:" "$INSTALL_DIR/install-config.yaml" && \
-           ! grep -q "^${FIELD}: " "$INSTALL_DIR/install-config.yaml"; then
+        if ! grep -q "^$${FIELD}:" "$INSTALL_DIR/install-config.yaml" && \
+           ! grep -q "^$${FIELD}: " "$INSTALL_DIR/install-config.yaml"; then
           echo "FATAL: install-config.yaml missing required field: $FIELD"
           echo "This would cause the installer to prompt interactively and hang."
           exit 1
@@ -111,7 +93,7 @@ exit(1)
       # The installer writes its own log to .openshift_install.log in the dir.
       if openshift-install create cluster \
         --dir="$INSTALL_DIR" \
-        --log-level=info; then
+        --log-level=debug; then
         echo "OCP installation completed successfully."
       else
         echo "ERROR: OCP installation failed. Check $INSTALL_DIR/.openshift_install.log"
