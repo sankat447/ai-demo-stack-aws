@@ -21,19 +21,10 @@ spec:
         image: ghcr.io/mlflow/mlflow:v2.12.1
         ports:
         - containerPort: 5000
-        command: ["mlflow", "server"]
+        command: ["/bin/sh", "-c"]
         args:
-        - "--host=0.0.0.0"
-        - "--port=5000"
-        - "--backend-store-uri=postgresql://rhoai_admin:Demo1234#@$(AURORA_ENDPOINT):5432/rhoai_demo"
-        - "--default-artifact-root=s3://ai-demo-data-lake/mlflow-artifacts/"
+        - "pip install psycopg2-binary && mlflow server --host=0.0.0.0 --port=5000 --backend-store-uri=sqlite:///mlflow/mlflow.db --default-artifact-root=s3://ai-demo-data-lake/mlflow-artifacts/"
         env:
-        - name: AURORA_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              name: aurora-credentials
-              key: endpoint
-              optional: true
         - name: AWS_DEFAULT_REGION
           value: "us-east-1"
         - name: MLFLOW_S3_ENDPOINT_URL

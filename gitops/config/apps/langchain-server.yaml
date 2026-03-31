@@ -24,8 +24,10 @@ spec:
         env:
         - name: PORTKEY_GATEWAY_URL
           value: "http://portkey.ai-demo.svc:8787"
+        - name: POSTGRES_URI
+          value: "postgresql://rhoai_admin:Demo1234#@ai-demo-db.cluster-cidweltunfq6.us-east-1.rds.amazonaws.com:5432/rhoai_demo"
         - name: PGVECTOR_CONNECTION_STRING
-          value: "postgresql://rhoai_admin:Demo1234#@aurora-endpoint:5432/rhoai_demo"
+          value: "postgresql://rhoai_admin:Demo1234#@ai-demo-db.cluster-cidweltunfq6.us-east-1.rds.amazonaws.com:5432/rhoai_demo"
         - name: AWS_DEFAULT_REGION
           value: "us-east-1"
         - name: S3_BUCKET
