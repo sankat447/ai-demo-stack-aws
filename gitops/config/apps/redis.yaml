@@ -18,15 +18,13 @@ spec:
     spec:
       containers:
       - name: redis
-        image: docker.io/bitnami/redis:7.4
+        image: docker.io/redis:7-alpine
         ports:
         - containerPort: 6379
-        env:
-        - name: REDIS_PASSWORD
-          value: "Demo1234#"
+        command: ["redis-server", "--requirepass", "Demo1234#", "--dir", "/data"]
         volumeMounts:
         - name: data
-          mountPath: /bitnami/redis/data
+          mountPath: /data
         readinessProbe:
           exec:
             command: ["redis-cli", "-a", "Demo1234#", "ping"]
