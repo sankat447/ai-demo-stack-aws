@@ -65,6 +65,13 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: openshift-tempo-operator
+  labels:
+    app.kubernetes.io/part-of: ai-demo-stack
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: rhoai-sso
   labels:
     app.kubernetes.io/part-of: ai-demo-stack

@@ -8,6 +8,7 @@ metadata:
     opendatahub.io/dashboard: "true"
   annotations:
     openshift.io/display-name: "vLLM Runtime (T4 GPU optimized)"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   annotations:
     prometheus.io/port: "8080"

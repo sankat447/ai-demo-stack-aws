@@ -4,6 +4,8 @@ kind: Subscription
 metadata:
   name: gpu-operator-certified
   namespace: gpu-operator-resources
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   channel: v26.3
   installPlanApproval: Automatic
@@ -16,6 +18,8 @@ kind: OperatorGroup
 metadata:
   name: gpu-operator-resources
   namespace: gpu-operator-resources
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   targetNamespaces:
   - gpu-operator-resources

@@ -4,6 +4,8 @@ kind: Subscription
 metadata:
   name: nfd
   namespace: openshift-nfd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   channel: stable
   installPlanApproval: Automatic
@@ -16,6 +18,8 @@ kind: OperatorGroup
 metadata:
   name: openshift-nfd
   namespace: openshift-nfd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   targetNamespaces:
   - openshift-nfd
