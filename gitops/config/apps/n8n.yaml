@@ -16,16 +16,14 @@ spec:
       labels:
         app: n8n
     spec:
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       containers:
       - name: n8n
         image: docker.io/n8nio/n8n:latest
         ports:
         - containerPort: 5678
         env:
+        - name: HOME
+          value: "/home/node"
         - name: N8N_BASIC_AUTH_ACTIVE
           value: "true"
         - name: N8N_BASIC_AUTH_USER

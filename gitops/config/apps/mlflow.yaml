@@ -23,7 +23,7 @@ spec:
         - containerPort: 5000
         command: ["/bin/sh", "-c"]
         args:
-        - "pip install psycopg2-binary && mlflow server --host=0.0.0.0 --port=5000 --backend-store-uri=sqlite:///mlflow/mlflow.db --default-artifact-root=s3://ai-demo-data-lake/mlflow-artifacts/"
+        - "pip install --target=/tmp/pip psycopg2-binary && export PYTHONPATH=/tmp/pip:$PYTHONPATH && mlflow server --host=0.0.0.0 --port=5000 --backend-store-uri=sqlite:///tmp/mlflow.db --default-artifact-root=s3://ai-demo-data-lake/mlflow-artifacts/"
         env:
         - name: AWS_DEFAULT_REGION
           value: "us-east-1"
