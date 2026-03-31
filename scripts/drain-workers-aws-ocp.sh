@@ -22,13 +22,8 @@ echo -e "${MAGENTA}${BOLD}╚═════════════════
 # ── Prerequisites ──────────────────────────────────────────────────────────
 section "PHASE 1 — Authentication & Cluster Connection"
 
-aws_sso_login
-
-KUBECONFIG_PATH="${ENV_DIR}/ocp-install-dir/${CLUSTER_NAME}/auth/kubeconfig"
-if [[ ! -f "$KUBECONFIG_PATH" ]]; then
-  abort "KUBECONFIG not found at ${KUBECONFIG_PATH}"
-fi
-export KUBECONFIG="$KUBECONFIG_PATH"
+# Source reauth.sh for AWS SSO + KUBECONFIG + OCP connectivity
+source "${SCRIPT_DIR}/reauth.sh"
 
 if ! oc whoami &>/dev/null; then
   abort "Cannot connect to OCP cluster. Check KUBECONFIG and network."
@@ -85,7 +80,7 @@ ELAPSED=0
 INTERVAL=15
 
 while [[ $ELAPSED -lt $MAX_WAIT ]]; do
-  REMAINING=$(oc get machines -n openshift-machine-api --no-headers 2>/dev/null | grep -c worker || echo "0")
+  REMAINING=$(oc get machines -n openshift-machine-api --no-headers 2>/dev/null | grep worker | wc -l | tr -d ' ')
   if [[ "$REMAINING" -eq 0 ]]; then
     log_ok "All worker machines deleted."
     break
@@ -155,8 +150,8 @@ oc get nodes --no-headers 2>/dev/null | while read -r line; do
 done
 
 echo ""
-MASTER_COUNT=$(oc get machines -n openshift-machine-api --no-headers 2>/dev/null | grep -c master || echo "0")
-WORKER_COUNT=$(oc get machines -n openshift-machine-api --no-headers 2>/dev/null | grep -c worker || echo "0")
+MASTER_COUNT=$(oc get machines -n openshift-machine-api --no-headers 2>/dev/null | grep master | wc -l | tr -d ' ')
+WORKER_COUNT=$(oc get machines -n openshift-machine-api --no-headers 2>/dev/null | grep worker | wc -l | tr -d ' ')
 
 if [[ "$WORKER_COUNT" -eq 0 && "$MASTER_COUNT" -eq 3 ]]; then
   log_ok "Cluster scaled down: ${MASTER_COUNT} masters, 0 workers"

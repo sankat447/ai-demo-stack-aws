@@ -25,7 +25,8 @@ echo -e "${RED}${BOLD}╚══════════════════�
 # ── Prerequisites ──────────────────────────────────────────────────────────
 section "PHASE 1 — Authentication"
 
-aws_sso_login
+# Source reauth.sh for AWS SSO + KUBECONFIG
+source "${SCRIPT_DIR}/reauth.sh"
 
 # ── Safety check: ensure workers are already drained ──────────────────────
 section "PHASE 2 — Safety Checks"
