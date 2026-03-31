@@ -50,8 +50,8 @@ metadata:
   name: minio-data
   namespace: rhoai-minio
 spec:
-  accessModes: [ReadWriteMany]
-  storageClassName: efs-sc
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3-csi
   resources:
     requests:
       storage: 50Gi
