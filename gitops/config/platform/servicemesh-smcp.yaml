@@ -1,44 +1,20 @@
 ---
-apiVersion: maistra.io/v2
-kind: ServiceMeshControlPlane
-metadata:
-  name: basic
-  namespace: istio-system
-spec:
-  version: v2.6
-  tracing:
-    type: Jaeger
-    sampling: 10000
-  addons:
-    jaeger:
-      install:
-        storage:
-          type: Memory
-    kiali:
-      enabled: true
-    grafana:
-      enabled: false
-    prometheus:
-      enabled: true
-  gateways:
-    ingress:
-      service:
-        type: ClusterIP
-    egress:
-      enabled: false
-  proxy:
-    accessLogging:
-      file:
-        name: /dev/stdout
-  security:
-    dataPlane:
-      mtls: true
+# NOTE: Do NOT define a ServiceMeshControlPlane here!
+# RHOAI creates its own SMCP (data-science-smcp) in istio-system.
+# Only one SMCP is allowed per namespace. If we create one here,
+# RHOAI's KServe component will fail with:
+#   "only one service mesh may be installed per project/namespace"
+#
+# We only define the ServiceMeshMemberRoll to add our app namespaces
+# to the RHOAI-managed mesh.
 ---
 apiVersion: maistra.io/v1
 kind: ServiceMeshMemberRoll
 metadata:
   name: default
   namespace: istio-system
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   members:
   - ai-demo
