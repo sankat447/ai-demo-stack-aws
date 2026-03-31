@@ -25,8 +25,7 @@ spec:
         - name: PORTKEY_LOG_LEVEL
           value: "info"
         readinessProbe:
-          httpGet:
-            path: /v1/health
+          tcpSocket:
             port: 8787
           initialDelaySeconds: 5
           periodSeconds: 10
