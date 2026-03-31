@@ -16,6 +16,20 @@ spec:
       labels:
         app: n8n
     spec:
+      serviceAccountName: n8n
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: fix-permissions
+        image: docker.io/busybox:latest
+        command: ["sh", "-c", "chown -R 1000:1000 /home/node/.n8n"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: data
+          mountPath: /home/node/.n8n
       containers:
       - name: n8n
         image: docker.io/n8nio/n8n:latest
@@ -37,7 +51,7 @@ spec:
         - name: GENERIC_TIMEZONE
           value: "America/New_York"
         - name: N8N_USER_FOLDER
-          value: "/home/node/.n8n"
+          value: "/home/node"
         volumeMounts:
         - name: data
           mountPath: /home/node/.n8n

@@ -25,12 +25,9 @@ spec:
       serviceAccountName: vault
       containers:
       - name: vault
-        image: docker.io/hashicorp/vault:1.15
+        image: docker.io/hashicorp/vault:1.13.3
         ports:
         - containerPort: 8200
-        securityContext:
-          capabilities:
-            add: ["IPC_LOCK"]
         env:
         - name: VAULT_DEV_ROOT_TOKEN_ID
           value: "Demo1234#"
