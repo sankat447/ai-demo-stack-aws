@@ -16,6 +16,10 @@ spec:
       labels:
         app: n8n
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: n8n
         image: docker.io/n8nio/n8n:latest
@@ -34,6 +38,8 @@ spec:
           value: "5678"
         - name: GENERIC_TIMEZONE
           value: "America/New_York"
+        - name: N8N_USER_FOLDER
+          value: "/home/node/.n8n"
         volumeMounts:
         - name: data
           mountPath: /home/node/.n8n
