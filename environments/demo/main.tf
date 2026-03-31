@@ -157,8 +157,10 @@ module "ocp" {
   base_domain          = var.base_domain
   ocp_version          = var.ocp_version
   aws_region           = var.aws_region
-  aws_profile          = var.aws_profile
-  master_instance_type = var.master_instance_type
+  aws_profile           = var.aws_profile
+  aws_access_key_id     = var.ocp_aws_access_key_id
+  aws_secret_access_key = var.ocp_aws_secret_access_key
+  master_instance_type  = var.master_instance_type
   master_count         = var.master_count
   worker_instance_type = var.initial_worker_instance_type
   worker_count         = var.initial_worker_count

@@ -31,6 +31,7 @@ provider "aws" {
       Environment = var.environment
       ManagedBy   = "terraform"
       Owner       = var.owner_tag
+      CostCenter  = "IIS-AI-AWS-DEMO"
     }
   }
 }

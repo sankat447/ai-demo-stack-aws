@@ -46,6 +46,8 @@ networking:
 platform:
   aws:
     region: ${aws_region}
+    userTags:
+      CostCenter: IIS-AI-AWS-DEMO
 credentialsMode: Mint
 publish: External
 fips: ${fips}

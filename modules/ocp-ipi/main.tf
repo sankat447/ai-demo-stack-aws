@@ -42,12 +42,18 @@ resource "null_resource" "ocp_install" {
       set -euo pipefail
       INSTALL_DIR="${local.install_dir}"
 
-      # ── Export AWS credentials from SSO profile ──────────────────────────
-      # openshift-install rejects SSO profiles and raw session tokens.
-      # Use 'aws configure export-credentials' to get resolved credentials
-      # that work with credentialsMode: Manual.
-      echo "Resolving AWS credentials from SSO profile..."
-      eval "$(aws configure export-credentials --profile "${var.aws_profile}" --format env)"
+      # ── Set AWS credentials ──────────────────────────────────────────────
+      # openshift-install rejects SSO session tokens for Mint/Manual modes.
+      # Use static IAM user credentials (no session token).
+      if [[ -n "${var.aws_access_key_id}" ]]; then
+        echo "Using static IAM credentials for openshift-install..."
+        export AWS_ACCESS_KEY_ID="${var.aws_access_key_id}"
+        export AWS_SECRET_ACCESS_KEY="${var.aws_secret_access_key}"
+        unset AWS_SESSION_TOKEN 2>/dev/null || true
+      else
+        echo "Resolving AWS credentials from SSO profile..."
+        eval "$(aws configure export-credentials --profile "${var.aws_profile}" --format env)"
+      fi
       unset AWS_PROFILE 2>/dev/null || true
       export AWS_DEFAULT_REGION="${var.aws_region}"
 

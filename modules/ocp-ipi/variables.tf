@@ -26,6 +26,20 @@ variable "aws_profile" {
   default     = "rhoai-demo"
 }
 
+variable "aws_access_key_id" {
+  description = "Static AWS access key ID for openshift-install (SSO tokens not supported)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "Static AWS secret access key for openshift-install"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "master_instance_type" {
   description = "EC2 instance type for control plane nodes"
   type        = string

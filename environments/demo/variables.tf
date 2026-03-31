@@ -33,6 +33,20 @@ variable "aws_profile" {
   default     = "rhoai-demo"
 }
 
+variable "ocp_aws_access_key_id" {
+  description = "Static AWS access key for OCP installer (SSO tokens not supported by openshift-install)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ocp_aws_secret_access_key" {
+  description = "Static AWS secret key for OCP installer"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # ── Network ──────────────────────────────────────────────────────────────────
 variable "vpc_cidr" {
   description = "VPC CIDR block (/16 required for OCP)"
