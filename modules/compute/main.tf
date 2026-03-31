@@ -11,11 +11,11 @@ resource "local_file" "compute_machineset_a" {
     infrastructure_id = var.infrastructure_id
     instance_type     = var.compute_instance_type
     az                = var.availability_zones[0]
-    subnet_filter     = "${var.cluster_name}-private-${var.availability_zones[0]}"
+    subnet_filter     = "${var.infrastructure_id}-private-${var.availability_zones[0]}"
     role              = "compute"
     replicas          = var.compute_min_replicas
     ami_id            = var.ami_id
-    sg_filter         = "${var.cluster_name}-worker-sg"
+    sg_filter         = "${var.infrastructure_id}-worker-sg"
     labels            = "node-role.kubernetes.io/compute: \"\""
   })
 }
@@ -27,11 +27,11 @@ resource "local_file" "compute_machineset_b" {
     infrastructure_id = var.infrastructure_id
     instance_type     = var.compute_instance_type
     az                = var.availability_zones[1]
-    subnet_filter     = "${var.cluster_name}-private-${var.availability_zones[1]}"
+    subnet_filter     = "${var.infrastructure_id}-private-${var.availability_zones[1]}"
     role              = "compute"
     replicas          = var.compute_min_replicas
     ami_id            = var.ami_id
-    sg_filter         = "${var.cluster_name}-worker-sg"
+    sg_filter         = "${var.infrastructure_id}-worker-sg"
     labels            = "node-role.kubernetes.io/compute: \"\""
   })
 }
@@ -43,11 +43,11 @@ resource "local_file" "gpu_machineset" {
     infrastructure_id = var.infrastructure_id
     instance_type     = var.gpu_instance_type
     az                = var.availability_zones[0]
-    subnet_filter     = "${var.cluster_name}-private-${var.availability_zones[0]}"
+    subnet_filter     = "${var.infrastructure_id}-private-${var.availability_zones[0]}"
     role              = "gpu-demo"
     replicas          = 0
     ami_id            = var.ami_id
-    sg_filter         = "${var.cluster_name}-worker-sg"
+    sg_filter         = "${var.infrastructure_id}-worker-sg"
     labels            = "node-role.kubernetes.io/gpu: \"\"\n        nvidia.com/gpu.present: \"true\""
   })
 }
@@ -115,8 +115,26 @@ resource "null_resource" "apply_machinesets" {
   provisioner "local-exec" {
     command = <<-EOT
       export KUBECONFIG="${var.kubeconfig_path}"
+
+      # Auto-detect AMI from existing installer-created worker MachineSet
+      DETECTED_AMI=$(oc get machineset -n openshift-machine-api -o jsonpath='{.items[0].spec.template.spec.providerSpec.value.ami.id}' 2>/dev/null || echo "")
+      if [[ -z "$DETECTED_AMI" ]]; then
+        echo "ERROR: Could not detect RHCOS AMI from existing MachineSets"
+        exit 1
+      fi
+      echo "Detected RHCOS AMI: $DETECTED_AMI"
+
+      # Inject AMI into MachineSet YAMLs if not already set
       echo "Applying MachineSets and Autoscalers..."
       for f in ${var.output_dir}/machineset-*.yaml; do
+        # If AMI section is missing, inject it from the detected AMI
+        if ! grep -q "ami:" "$f"; then
+          sed -i.bak "/placement:/i\\
+          ami:\\
+            id: $DETECTED_AMI" "$f"
+          rm -f "$f.bak"
+          echo "  Injected AMI $DETECTED_AMI into $f"
+        fi
         oc apply -f "$f" && echo "Applied $f"
       done
       for f in ${var.output_dir}/machineautoscaler-*.yaml; do

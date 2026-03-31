@@ -13,6 +13,10 @@ compute:
         size: 120
         type: gp3
         iops: 3000
+      zones:
+      - us-east-1a
+      - us-east-1b
+      - us-east-1c
   replicas: ${worker_count}
 controlPlane:
   architecture: amd64
@@ -25,6 +29,10 @@ controlPlane:
         size: 120
         type: gp3
         iops: 3000
+      zones:
+      - us-east-1a
+      - us-east-1b
+      - us-east-1c
   replicas: ${master_count}
 networking:
   clusterNetwork:
@@ -38,7 +46,7 @@ networking:
 platform:
   aws:
     region: ${aws_region}
-credentialsMode: Manual
+credentialsMode: Mint
 publish: External
 fips: ${fips}
 pullSecret: '${replace(pull_secret, "'", "''")}'

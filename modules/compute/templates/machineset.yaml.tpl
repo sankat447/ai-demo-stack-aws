@@ -26,7 +26,11 @@ spec:
         value:
           apiVersion: machine.openshift.io/v1beta1
           kind: AWSMachineProviderConfig
+          credentialsSecret:
+            name: aws-cloud-credentials
           instanceType: ${instance_type}
+          iamInstanceProfile:
+            id: ${infrastructure_id}-worker-profile
           placement:
             availabilityZone: ${az}
             region: ${substr(az, 0, length(az) - 1)}

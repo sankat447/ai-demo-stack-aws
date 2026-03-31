@@ -180,15 +180,17 @@ module "ocp" {
 # Gated on OCP cluster being installed (kubeconfig must exist)
 # ─────────────────────────────────────────────────────────────────────────────
 locals {
-  ocp_installed = length(module.ocp) > 0
+  ocp_installed    = length(module.ocp) > 0
+  infra_id_from_file = try(trimspace(file("${path.module}/ocp-install-dir/${var.cluster_name}/infrastructure-id")), "")
+  compute_ready    = local.ocp_installed && local.infra_id_from_file != ""
 }
 
 module "compute" {
   source = "../../modules/compute"
-  count  = local.ocp_installed ? 1 : 0
+  count  = local.compute_ready ? 1 : 0
 
   cluster_name          = var.cluster_name
-  infrastructure_id     = trimspace(try(file("${path.module}/ocp-install-dir/${var.cluster_name}/infrastructure-id"), var.cluster_name))
+  infrastructure_id     = local.infra_id_from_file
   availability_zones    = var.availability_zones
   compute_instance_type = var.compute_instance_type
   compute_min_replicas  = var.compute_min_replicas
