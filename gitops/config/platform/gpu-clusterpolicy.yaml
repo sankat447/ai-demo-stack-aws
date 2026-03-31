@@ -9,6 +9,11 @@ metadata:
 spec:
   operator:
     defaultRuntime: crio
+  daemonsets:
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
   driver:
     enabled: true
     repoConfig:
@@ -19,8 +24,6 @@ spec:
       configMapName: ""
     virtualTopology:
       config: ""
-    # Let the GPU Operator auto-select the correct driver for the RHCOS kernel
-    # Do NOT hardcode version — avoids OCP 4.17-style driver mismatch issues
   toolkit:
     enabled: true
     installDir: /usr/local/nvidia
