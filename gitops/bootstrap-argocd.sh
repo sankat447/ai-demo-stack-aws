@@ -6,8 +6,8 @@
 # =============================================================================
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="${SCRIPT_DIR}/.."
+GITOPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="${GITOPS_DIR}/.."
 source "${ROOT_DIR}/scripts/common.sh"
 
 GITOPS_REPO_URL="https://github.com/sankat447/ai-demo-stack-aws"
@@ -139,7 +139,7 @@ log_ok "ArgoCD application controller has cluster-admin"
 section "BOOTSTRAP: Deploy App-of-Apps (28 applications, 7 sync waves)"
 # =============================================================================
 
-oc apply -f "${SCRIPT_DIR}/apps/applications.yaml"
+oc apply -f "${GITOPS_DIR}/apps/applications.yaml"
 log_ok "App-of-Apps applied — ArgoCD will now sync all applications"
 
 # Show ArgoCD URL
