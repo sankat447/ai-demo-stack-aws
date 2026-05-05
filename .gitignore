@@ -74,3 +74,4 @@ venv/
 
 # ── Claude Code ──────────────────────────────────────────────────────────────
 .claude/
+.ocp-installer-creds.json

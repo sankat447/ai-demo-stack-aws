@@ -225,6 +225,52 @@ if [[ -z "$SSH_KEY" ]]; then
   exit 1
 fi
 
+# ── 0.4cc: Static IAM credentials for OCP installer (Mint mode) ────────────
+# openshift-install rejects SSO session tokens for credentialsMode: Mint.
+# We need a static IAM user with AKIA-style keys for the cloud-credential-operator.
+OCP_CREDS_FILE="${ROOT_DIR}/.ocp-installer-creds.json"
+OCP_USER="ocp-installer"
+
+if [[ -f "$OCP_CREDS_FILE" ]]; then
+  OCP_AK=$(jq -r '.AccessKeyId' "$OCP_CREDS_FILE" 2>/dev/null || echo "")
+  OCP_SK=$(jq -r '.SecretAccessKey' "$OCP_CREDS_FILE" 2>/dev/null || echo "")
+  if [[ -n "$OCP_AK" && -n "$OCP_SK" ]] && \
+     AWS_ACCESS_KEY_ID="$OCP_AK" AWS_SECRET_ACCESS_KEY="$OCP_SK" AWS_SESSION_TOKEN="" \
+       aws sts get-caller-identity --no-cli-pager &>/dev/null; then
+    log_ok "OCP installer IAM key reused from ${OCP_CREDS_FILE}"
+  else
+    log_warn "Cached OCP installer key invalid — will rotate"
+    rm -f "$OCP_CREDS_FILE"
+  fi
+fi
+
+if [[ ! -f "$OCP_CREDS_FILE" ]]; then
+  if ! aws iam get-user --user-name "$OCP_USER" --profile "$AWS_PROFILE" &>/dev/null; then
+    log_info "Creating IAM user ${OCP_USER}..."
+    aws iam create-user --user-name "$OCP_USER" --profile "$AWS_PROFILE" >/dev/null
+    aws iam attach-user-policy --user-name "$OCP_USER" \
+      --policy-arn arn:aws:iam::aws:policy/AdministratorAccess \
+      --profile "$AWS_PROFILE" >/dev/null
+    log_ok "IAM user ${OCP_USER} created with AdministratorAccess"
+  fi
+  log_info "Creating new access key for ${OCP_USER}..."
+  aws iam create-access-key --user-name "$OCP_USER" --profile "$AWS_PROFILE" \
+    --query 'AccessKey' --output json > "$OCP_CREDS_FILE"
+  chmod 600 "$OCP_CREDS_FILE"
+  OCP_AK=$(jq -r '.AccessKeyId' "$OCP_CREDS_FILE")
+  OCP_SK=$(jq -r '.SecretAccessKey' "$OCP_CREDS_FILE")
+  log_ok "OCP installer access key saved to ${OCP_CREDS_FILE} (chmod 600)"
+  # IAM eventual-consistency wait
+  for i in $(seq 1 12); do
+    if AWS_ACCESS_KEY_ID="$OCP_AK" AWS_SECRET_ACCESS_KEY="$OCP_SK" AWS_SESSION_TOKEN="" \
+         aws sts get-caller-identity --no-cli-pager &>/dev/null; then
+      log_ok "OCP installer key propagated"
+      break
+    fi
+    sleep 3
+  done
+fi
+
 # ── 0.4d: Auto-generate terraform.tfvars ───────────────────────────────────
 log_info "Generating terraform.tfvars..."
 
@@ -277,6 +323,10 @@ ${PULL_SECRET}
 PULLSECRET
 
 ssh_public_key = "${SSH_KEY}"
+
+# ── OCP installer static IAM keys (Mint mode requires AKIA, not SSO) ─────────
+ocp_aws_access_key_id     = "${OCP_AK}"
+ocp_aws_secret_access_key = "${OCP_SK}"
 TFVARS
 
 chmod 600 "${TFVARS_FILE}"

@@ -37,7 +37,9 @@ spec:
           value: "http://127.0.0.1:8200"
         - name: SKIP_SETCAP
           value: "true"
-        args: ["server", "-dev"]
+        - name: HOME
+          value: "/tmp"
+        args: ["server", "-dev", "-dev-no-store-token"]
         volumeMounts:
         - name: data
           mountPath: /vault/data
