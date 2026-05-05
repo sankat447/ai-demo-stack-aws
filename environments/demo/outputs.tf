@@ -96,13 +96,13 @@ output "ocp_nodes_sg_id" {
 }
 
 output "aurora_sg_id" {
-  description = "Aurora security group ID"
-  value       = module.security_groups.aurora_sg_id
+  description = "Aurora security group ID (in OCP VPC)"
+  value       = aws_security_group.aurora_ocp.id
 }
 
 output "efs_sg_id" {
-  description = "EFS security group ID"
-  value       = module.security_groups.efs_sg_id
+  description = "EFS security group ID (in OCP VPC)"
+  value       = aws_security_group.efs_ocp.id
 }
 
 # ── OCP Cluster (created when pull_secret is set) ────────────────────────────

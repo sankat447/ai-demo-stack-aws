@@ -3,15 +3,9 @@ output "ocp_nodes_sg_id" {
   value       = aws_security_group.ocp_nodes.id
 }
 
-output "aurora_sg_id" {
-  description = "Security group ID for Aurora"
-  value       = aws_security_group.aurora.id
-}
-
-output "efs_sg_id" {
-  description = "Security group ID for EFS"
-  value       = aws_security_group.efs.id
-}
+# Aurora and EFS SGs were removed when both moved to the OCP VPC. The
+# OCP-VPC SGs (aurora_ocp / efs_ocp) are defined directly in
+# environments/demo/main.tf because they need data.aws_vpc.ocp.
 
 output "ingress_lb_sg_id" {
   description = "Security group ID for ingress/LB"

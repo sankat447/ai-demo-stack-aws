@@ -106,67 +106,10 @@ resource "aws_security_group" "ocp_nodes" {
   }
 }
 
-# ── Aurora PostgreSQL SG ────────────────────────────────────────────────────
-resource "aws_security_group" "aurora" {
-  name_prefix = "${var.name}-aurora-"
-  description = "Aurora PostgreSQL access from VPC"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description = "PostgreSQL from VPC"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  egress {
-    description = "All outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = merge(var.tags, {
-    Name = "${var.name}-aurora"
-  })
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# ── EFS SG ──────────────────────────────────────────────────────────────────
-resource "aws_security_group" "efs" {
-  name_prefix = "${var.name}-efs-"
-  description = "EFS NFS access from VPC"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description = "NFS from VPC"
-    from_port   = 2049
-    to_port     = 2049
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  egress {
-    description = "All outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = merge(var.tags, {
-    Name = "${var.name}-efs"
-  })
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
+# Aurora and EFS SGs are defined in environments/demo/main.tf — they live
+# in the OCP-installer VPC (data.aws_vpc.ocp), not the Terraform VPC.
+# Cross-VPC peering is impossible (both have CIDR 10.0.0.0/16), so Aurora/EFS
+# must be in the same VPC as the cluster nodes.
 
 # ── Ingress / Load Balancer SG ──────────────────────────────────────────────
 resource "aws_security_group" "ingress_lb" {
