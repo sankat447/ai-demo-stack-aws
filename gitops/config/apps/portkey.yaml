@@ -15,6 +15,7 @@ spec:
     metadata:
       labels:
         app: portkey
+        maistra.io/expose-route: "true"
     spec:
       containers:
       - name: portkey

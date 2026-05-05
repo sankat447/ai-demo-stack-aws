@@ -35,6 +35,7 @@ spec:
     metadata:
       labels:
         app: n8n
+        maistra.io/expose-route: "true"
     spec:
       serviceAccountName: n8n
       securityContext:

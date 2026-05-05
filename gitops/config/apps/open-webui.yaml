@@ -15,6 +15,7 @@ spec:
     metadata:
       labels:
         app: open-webui
+        maistra.io/expose-route: "true"
     spec:
       containers:
       - name: open-webui
