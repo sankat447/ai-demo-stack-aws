@@ -124,15 +124,23 @@ resource "null_resource" "apply_machinesets" {
       fi
       echo "Detected RHCOS AMI: $DETECTED_AMI"
 
-      # Inject AMI into MachineSet YAMLs if not already set
+      # Inject AMI into MachineSet YAMLs if not already set.
+      # Uses awk for portability — `sed -i ... i\` differs between BSD (macOS)
+      # and GNU sed and silently produced a single-line `id: ami-... placement:`
+      # collapse on macOS, breaking YAML parsing.
       echo "Applying MachineSets and Autoscalers..."
       for f in ${var.output_dir}/machineset-*.yaml; do
-        # If AMI section is missing, inject it from the detected AMI
         if ! grep -q "ami:" "$f"; then
-          sed -i.bak "/placement:/i\\
-          ami:\\
-            id: $DETECTED_AMI" "$f"
-          rm -f "$f.bak"
+          awk -v ami="$DETECTED_AMI" '
+            /^[[:space:]]*placement:/ && !done {
+              n = match($0, /[^ ]/) - 1
+              pad = sprintf("%*s", n, "")
+              print pad "ami:"
+              print pad "  id: " ami
+              done = 1
+            }
+            { print }
+          ' "$f" > "$f.new" && mv "$f.new" "$f"
           echo "  Injected AMI $DETECTED_AMI into $f"
         fi
         oc apply -f "$f" && echo "Applied $f"
