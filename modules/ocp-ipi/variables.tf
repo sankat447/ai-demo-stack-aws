@@ -110,11 +110,6 @@ variable "network_type" {
   default     = "OVNKubernetes"
 }
 
-variable "efs_file_system_id" {
-  description = "EFS file system ID for efs-sc StorageClass"
-  type        = string
-  default     = ""
-}
 
 variable "install_dir" {
   description = "Directory to store install artifacts"

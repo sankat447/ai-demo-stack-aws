@@ -243,23 +243,11 @@ resource "null_resource" "storage_classes" {
       oc annotate storageclass gp3-csi \
         storageclass.kubernetes.io/is-default-class=true --overwrite 2>/dev/null || true
 
-      # efs-sc will be created by the EFS CSI operator once deployed via GitOps
-      # Pre-create the StorageClass definition so PVCs don't fail
-      oc apply -f - <<'SC'
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: efs-sc
-provisioner: efs.csi.aws.com
-parameters:
-  provisioningMode: efs-ap
-  fileSystemId: "${var.efs_file_system_id}"
-  directoryPerms: "700"
-  uid: "1000"
-  gid: "1000"
-SC
+      # efs-sc is created by the root environment's null_resource.efs_storage_class
+      # after the EFS module finishes (EFS lives in OCP VPC, which depends on
+      # this module — so we cannot reference it from inside this module).
 
-      echo "StorageClasses configured: gp3-csi (default), efs-sc (RWX)"
+      echo "StorageClasses configured: gp3-csi (default)"
     EOT
     environment = {
       KUBECONFIG = "${local.install_dir}/auth/kubeconfig"

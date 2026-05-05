@@ -76,7 +76,87 @@ module "s3" {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MODULE 5: Aurora Serverless v2 PostgreSQL + pgvector
+# OCP VPC discovery — Aurora and EFS must live in the cluster's VPC, not the
+# Terraform-created module.vpc. openshift-install creates its own VPC; cross-VPC
+# peering is impossible because both have CIDR 10.0.0.0/16.
+#
+# NOTE: depends_on is intentionally omitted — the data source has to resolve
+# at plan time so EFS mount target count can be computed. For a fresh install
+# from scratch, run a 2-phase apply: first `terraform apply -target=module.ocp`,
+# then `terraform apply` to bring up Aurora/EFS in the discovered OCP VPC.
+# ─────────────────────────────────────────────────────────────────────────────
+data "aws_vpc" "ocp" {
+  filter {
+    name   = "tag:Name"
+    values = ["${var.cluster_name}-*-vpc"]
+  }
+}
+
+data "aws_subnets" "ocp_private" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.ocp.id]
+  }
+  filter {
+    name   = "tag:Name"
+    values = ["${var.cluster_name}-*-subnet-private-*"]
+  }
+}
+
+# ── Aurora SG in OCP VPC ────────────────────────────────────────────────────
+resource "aws_security_group" "aurora_ocp" {
+  name_prefix = "${local.name}-aurora-ocp-"
+  description = "Aurora PostgreSQL access from OCP VPC"
+  vpc_id      = data.aws_vpc.ocp.id
+
+  ingress {
+    description = "PostgreSQL from OCP VPC"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.ocp.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.tags, { Name = "${local.name}-aurora-ocp" })
+
+  lifecycle { create_before_destroy = true }
+}
+
+# ── EFS SG in OCP VPC ──────────────────────────────────────────────────────
+resource "aws_security_group" "efs_ocp" {
+  name_prefix = "${local.name}-efs-ocp-"
+  description = "EFS NFS access from OCP VPC"
+  vpc_id      = data.aws_vpc.ocp.id
+
+  ingress {
+    description = "NFS from OCP VPC"
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.ocp.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.tags, { Name = "${local.name}-efs-ocp" })
+
+  lifecycle { create_before_destroy = true }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULE 5: Aurora Serverless v2 PostgreSQL + pgvector — IN OCP VPC
 # ─────────────────────────────────────────────────────────────────────────────
 module "aurora" {
   source = "../../modules/aurora-serverless"
@@ -88,31 +168,31 @@ module "aurora" {
   engine_version        = var.aurora_engine_version
   min_acu               = var.aurora_min_acu
   max_acu               = var.aurora_max_acu
-  subnet_ids            = module.vpc.private_subnet_ids
-  security_group_ids    = [module.security_groups.aurora_sg_id]
+  subnet_ids            = data.aws_subnets.ocp_private.ids
+  security_group_ids    = [aws_security_group.aurora_ocp.id]
   ssm_path_prefix       = local.name
   skip_final_snapshot   = var.aurora_skip_snapshot
   deletion_protection   = var.aurora_deletion_protection
   backup_retention_days = var.aurora_backup_retention
 
   tags       = local.tags
-  depends_on = [module.vpc, module.security_groups]
+  depends_on = [module.ocp, aws_security_group.aurora_ocp]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MODULE 6: EFS Storage
+# MODULE 6: EFS Storage — IN OCP VPC
 # ─────────────────────────────────────────────────────────────────────────────
 module "efs" {
   source = "../../modules/efs-storage"
 
   name               = local.name
-  vpc_id             = module.vpc.vpc_id
-  subnet_ids         = module.vpc.private_subnet_ids
-  security_group_ids = [module.security_groups.efs_sg_id]
+  vpc_id             = data.aws_vpc.ocp.id
+  subnet_ids         = data.aws_subnets.ocp_private.ids
+  security_group_ids = [aws_security_group.efs_ocp.id]
   ssm_path_prefix    = local.name
 
   tags       = local.tags
-  depends_on = [module.vpc, module.security_groups]
+  depends_on = [module.ocp, aws_security_group.efs_ocp]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -170,11 +250,45 @@ module "ocp" {
   pull_secret          = var.pull_secret
   ssh_public_key       = var.ssh_public_key
   admin_password       = var.admin_password
-  efs_file_system_id   = module.efs.file_system_id
   install_dir          = "${path.module}/ocp-install-dir"
 
   tags       = local.tags
-  depends_on = [module.vpc, module.security_groups, module.route53, module.efs]
+  depends_on = [module.vpc, module.security_groups, module.route53]
+}
+
+# ── Create efs-sc StorageClass after EFS exists in OCP VPC ─────────────────
+# Decoupled from module.ocp to avoid a cycle: module.ocp must NOT depend on
+# module.efs because module.efs now depends on module.ocp (via OCP VPC lookup).
+resource "null_resource" "efs_storage_class" {
+  count = var.pull_secret != "" ? 1 : 0
+
+  triggers = {
+    efs_id = module.efs.file_system_id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -euo pipefail
+      export KUBECONFIG="${path.module}/ocp-install-dir/${var.cluster_name}/auth/kubeconfig"
+      # StorageClass parameters are immutable — must delete + apply
+      oc delete storageclass efs-sc --ignore-not-found=true
+      oc apply -f - <<SC
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: ${module.efs.file_system_id}
+  directoryPerms: "700"
+  uid: "1000"
+  gid: "1000"
+SC
+    EOT
+  }
+
+  depends_on = [module.ocp, module.efs]
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
