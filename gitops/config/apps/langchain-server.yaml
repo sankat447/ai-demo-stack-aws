@@ -15,6 +15,7 @@ spec:
     metadata:
       labels:
         app: langchain-server
+        maistra.io/expose-route: "true"
     spec:
       containers:
       - name: langchain-server
