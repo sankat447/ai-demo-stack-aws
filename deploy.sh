@@ -384,12 +384,46 @@ else
 fi
 
 # =============================================================================
-section "PHASE 1.2 — TERRAFORM PLAN"
+section "PHASE 1.2 — TERRAFORM APPLY (2-phase to handle OCP-VPC discovery)"
 # =============================================================================
+#
+# Why 2-phase:
+#   Aurora and EFS are wired to data.aws_vpc.ocp / data.aws_subnets.ocp_private,
+#   which discover the VPC that openshift-install creates. On a fresh install
+#   that VPC doesn't exist yet — `count = length(var.subnet_ids)` fails plan
+#   ("count value depends on resource attributes that cannot be determined
+#   until apply"). Solution: apply module.ocp first (creates the VPC), then
+#   full apply (data sources resolve, Aurora/EFS land in the OCP VPC).
+#
+#   On subsequent runs both phases are mostly no-ops (idempotent skip-if-exists
+#   in null_resource.ocp_install + terraform state already populated).
 
 PLAN_LOG="${LOG_DIR}/plan_${TIMESTAMP}.log"
-log_info "Running: terraform plan -out=tfplan"
+APPLY_LOG="${LOG_DIR}/apply_${TIMESTAMP}.log"
 
+# ── Detect fresh install: OCP VPC tag absent ────────────────────────────────
+OCP_VPC_EXISTS=$(aws ec2 describe-vpcs \
+  --filters "Name=tag:Name,Values=${CLUSTER}-*-vpc" \
+  --profile "$AWS_PROFILE" --region us-east-1 \
+  --query 'Vpcs[0].VpcId' --output text 2>/dev/null || echo "None")
+
+if [[ "$OCP_VPC_EXISTS" == "None" || -z "$OCP_VPC_EXISTS" ]]; then
+  log_info "Fresh install detected (no OCP VPC yet) — running phase A: -target=module.ocp"
+
+  terraform apply -target=module.ocp -auto-approve 2>&1 | tee "$APPLY_LOG"
+  TF_APPLY_RC=${PIPESTATUS[0]}
+
+  if grep -qi "│ Error:" "$APPLY_LOG" 2>/dev/null; then
+    TF_APPLY_RC=1
+  fi
+  [[ $TF_APPLY_RC -ne 0 ]] && abort "Phase A (module.ocp) failed — see ${APPLY_LOG}"
+  log_ok "Phase A complete — OCP VPC ready, Aurora/EFS data sources can now resolve"
+else
+  log_ok "OCP VPC already exists (${OCP_VPC_EXISTS}) — skipping phase A"
+fi
+
+# ── Phase B: full apply ─────────────────────────────────────────────────────
+log_info "Running: terraform plan -out=tfplan"
 terraform plan -out=tfplan 2>&1 | tee "$PLAN_LOG"
 TF_PLAN_RC=${PIPESTATUS[0]}
 
@@ -402,10 +436,9 @@ else
 fi
 
 # =============================================================================
-section "PHASE 1.3 — TERRAFORM APPLY"
+section "PHASE 1.3 — TERRAFORM APPLY (full)"
 # =============================================================================
 
-APPLY_LOG="${LOG_DIR}/apply_${TIMESTAMP}.log"
 MAX_ATTEMPTS=3
 ATTEMPT=0
 

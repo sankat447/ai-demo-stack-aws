@@ -612,6 +612,36 @@ else
 fi
 
 # =============================================================================
+section "PHASE 9 — RESIDUAL CLEANUP (so next ./deploy.sh starts clean)"
+# =============================================================================
+#
+# These don't cost money but break re-provisioning if left around:
+#   - SSM parameters (terraform fails with "ParameterAlreadyExists")
+#   - Aurora subnet/parameter groups (orphan after manual cluster deletion)
+#   - openshift-install state in ocp-install-dir (confuses fresh installer)
+#   - errored.tfstate (terraform refuses to plan if present)
+#   - generated machinesets (regenerated each apply, harmless but noisy)
+
+log_info "Cleaning residual SSM parameters..."
+aws ssm delete-parameters \
+  --names /ai-demo/aurora/endpoint /ai-demo/aurora/database-name \
+          /ai-demo/aurora/master-password /ai-demo/efs/file-system-id \
+  --profile "$AWS_PROFILE" --region "$AWS_REGION" 2>&1 | head -3 || true
+
+log_info "Cleaning residual Aurora subnet group + parameter group..."
+aws rds delete-db-subnet-group --db-subnet-group-name "${CLUSTER_NAME}-db-subnet" \
+  --profile "$AWS_PROFILE" --region "$AWS_REGION" 2>/dev/null || true
+aws rds delete-db-cluster-parameter-group --db-cluster-parameter-group-name "${CLUSTER_NAME}-db-params" \
+  --profile "$AWS_PROFILE" --region "$AWS_REGION" 2>/dev/null || true
+
+log_info "Cleaning local state files..."
+rm -rf "${ENV_DIR}/ocp-install-dir/${CLUSTER_NAME}" 2>/dev/null || true
+rm -f "${ENV_DIR}/errored.tfstate" "${ENV_DIR}/tfplan" 2>/dev/null || true
+rm -rf "${ENV_DIR}/generated" 2>/dev/null || true
+
+log_ok "Residual cleanup complete — repo ready for fresh ./deploy.sh"
+
+# =============================================================================
 section "TEARDOWN COMPLETE"
 # =============================================================================
 
