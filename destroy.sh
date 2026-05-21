@@ -85,6 +85,35 @@ else
 fi
 
 # =============================================================================
+section "PHASE 2.5 — DESTROY AURORA + EFS (must precede OCP destroy)"
+# =============================================================================
+# Aurora and EFS live in the OCP-installed VPC (lesson #1). If we run
+# openshift-install destroy first, the installer enters an infinite NAT
+# gateway delete loop because Aurora ENIs and EFS mount target ENIs in the
+# OCP VPC subnets prevent the NAT GWs from fully terminating. Destroy these
+# TF-managed resources first so the OCP VPC is empty of TF-side dependencies
+# before openshift-install gets its hands on it.
+
+cd "$ENV_DIR" || abort "Cannot navigate to ${ENV_DIR}"
+
+# Only attempt if state file shows these modules are present
+if AWS_PROFILE="$AWS_PROFILE" terraform state list 2>/dev/null | grep -q "^module.aurora\|^module.efs"; then
+  log_info "Destroying Aurora + EFS before OCP cluster..."
+  TF_PRE_DESTROY_LOG="${LOG_DIR}/pre_destroy_${TIMESTAMP}.log"
+  AWS_PROFILE="$AWS_PROFILE" terraform destroy \
+    -target=module.aurora -target=module.efs \
+    -target=aws_security_group.aurora_ocp -target=aws_security_group.efs_ocp \
+    -auto-approve 2>&1 | tee "$TF_PRE_DESTROY_LOG"
+  if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
+    log_ok "Aurora + EFS destroyed (OCP VPC now safe for installer cleanup)"
+  else
+    log_warn "Aurora/EFS pre-destroy had errors — Phase 3 may still loop; see: $TF_PRE_DESTROY_LOG"
+  fi
+else
+  log_info "No Aurora/EFS in state — skipping pre-destroy"
+fi
+
+# =============================================================================
 section "PHASE 3 — DESTROY OCP CLUSTER"
 # =============================================================================
 
