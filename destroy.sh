@@ -97,12 +97,15 @@ section "PHASE 2.5 — DESTROY AURORA + EFS (must precede OCP destroy)"
 cd "$ENV_DIR" || abort "Cannot navigate to ${ENV_DIR}"
 
 # Only attempt if state file shows these modules are present
-if AWS_PROFILE="$AWS_PROFILE" terraform state list 2>/dev/null | grep -q "^module.aurora\|^module.efs"; then
+if AWS_PROFILE="$AWS_PROFILE" terraform state list 2>/dev/null | grep -qE "^module\.aurora|^module\.efs"; then
   log_info "Destroying Aurora + EFS before OCP cluster..."
   TF_PRE_DESTROY_LOG="${LOG_DIR}/pre_destroy_${TIMESTAMP}.log"
+  # Include null_resource.efs_storage_class — its dependency on module.efs.file_system_id
+  # blocks a clean -target destroy if omitted (observed 2026-05-26).
   AWS_PROFILE="$AWS_PROFILE" terraform destroy \
     -target=module.aurora -target=module.efs \
     -target=aws_security_group.aurora_ocp -target=aws_security_group.efs_ocp \
+    -target=null_resource.efs_storage_class \
     -auto-approve 2>&1 | tee "$TF_PRE_DESTROY_LOG"
   if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
     log_ok "Aurora + EFS destroyed (OCP VPC now safe for installer cleanup)"
