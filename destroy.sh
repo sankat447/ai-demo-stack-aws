@@ -96,7 +96,7 @@ section "PHASE 2.5 — DESTROY AURORA + EFS (must precede OCP destroy)"
 
 cd "$ENV_DIR" || abort "Cannot navigate to ${ENV_DIR}"
 
-# Only attempt if state file shows these modules are present
+# Step 1: Terraform-managed Aurora/EFS (the normal case).
 if AWS_PROFILE="$AWS_PROFILE" terraform state list 2>/dev/null | grep -qE "^module\.aurora|^module\.efs"; then
   log_info "Destroying Aurora + EFS before OCP cluster..."
   TF_PRE_DESTROY_LOG="${LOG_DIR}/pre_destroy_${TIMESTAMP}.log"
@@ -108,13 +108,75 @@ if AWS_PROFILE="$AWS_PROFILE" terraform state list 2>/dev/null | grep -qE "^modu
     -target=null_resource.efs_storage_class \
     -auto-approve 2>&1 | tee "$TF_PRE_DESTROY_LOG"
   if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
-    log_ok "Aurora + EFS destroyed (OCP VPC now safe for installer cleanup)"
+    log_ok "Aurora + EFS destroyed (TF-managed)"
   else
-    log_warn "Aurora/EFS pre-destroy had errors — Phase 3 may still loop; see: $TF_PRE_DESTROY_LOG"
+    log_warn "Aurora/EFS TF pre-destroy had errors — see: $TF_PRE_DESTROY_LOG"
   fi
 else
-  log_info "No Aurora/EFS in state — skipping pre-destroy"
+  log_info "No Aurora/EFS in TF state — checking AWS for orphans..."
 fi
+
+# Step 2: AWS-direct fallback — catches orphans where TF state was wiped or
+# resources were created outside terraform. Lesson from 2026-06-26: Phase 2.5
+# said "no Aurora in state — skipping" but Aurora was still alive in AWS,
+# blocking openshift-install destroy via the RDS ENI.
+PROJECT_PREFIX="${PROJECT_NAME:-ai}-${ENVIRONMENT:-demo}"
+
+# Aurora orphans
+ORPHAN_AURORA=$(aws rds describe-db-clusters --profile "$AWS_PROFILE" \
+  --query "DBClusters[?starts_with(DBClusterIdentifier,'${PROJECT_PREFIX}')].DBClusterIdentifier" \
+  --output text 2>/dev/null || true)
+for AURORA_ID in $ORPHAN_AURORA; do
+  log_warn "Orphan Aurora cluster found: ${AURORA_ID} — deleting"
+  # Delete instances first
+  for INST in $(aws rds describe-db-instances --profile "$AWS_PROFILE" \
+        --filters "Name=db-cluster-id,Values=${AURORA_ID}" \
+        --query 'DBInstances[*].DBInstanceIdentifier' --output text 2>/dev/null); do
+    aws rds delete-db-instance --db-instance-identifier "$INST" \
+      --skip-final-snapshot --profile "$AWS_PROFILE" \
+      --query 'DBInstance.DBInstanceStatus' --output text 2>&1 || true
+  done
+  # Wait until instances are gone (RDS doesn't allow cluster delete with live instances)
+  log_info "Waiting for Aurora instances to drain (up to 10 min)..."
+  for _ in $(seq 1 60); do
+    COUNT=$(aws rds describe-db-instances --profile "$AWS_PROFILE" \
+      --filters "Name=db-cluster-id,Values=${AURORA_ID}" \
+      --query 'length(DBInstances)' --output text 2>/dev/null || echo 0)
+    [[ "$COUNT" == "0" ]] && break
+    sleep 10
+  done
+  aws rds delete-db-cluster --db-cluster-identifier "$AURORA_ID" \
+    --skip-final-snapshot --profile "$AWS_PROFILE" \
+    --query 'DBCluster.Status' --output text 2>&1 || true
+  log_ok "Aurora ${AURORA_ID} deletion initiated"
+done
+
+# EFS orphans — match by Name tag prefix
+ORPHAN_EFS=$(aws efs describe-file-systems --profile "$AWS_PROFILE" \
+  --query "FileSystems[?Name && starts_with(Name,'${PROJECT_PREFIX}')].FileSystemId" \
+  --output text 2>/dev/null || true)
+for FS_ID in $ORPHAN_EFS; do
+  log_warn "Orphan EFS found: ${FS_ID} — deleting"
+  # Delete access points first
+  for AP in $(aws efs describe-access-points --file-system-id "$FS_ID" \
+        --profile "$AWS_PROFILE" --query 'AccessPoints[*].AccessPointId' --output text 2>/dev/null); do
+    aws efs delete-access-point --access-point-id "$AP" --profile "$AWS_PROFILE" 2>&1 || true
+  done
+  # Delete mount targets (these hold ENIs that block VPC cleanup)
+  for MT in $(aws efs describe-mount-targets --file-system-id "$FS_ID" \
+        --profile "$AWS_PROFILE" --query 'MountTargets[*].MountTargetId' --output text 2>/dev/null); do
+    aws efs delete-mount-target --mount-target-id "$MT" --profile "$AWS_PROFILE" 2>&1 || true
+  done
+  # Wait for mount targets to be gone before deleting file system
+  for _ in $(seq 1 30); do
+    COUNT=$(aws efs describe-mount-targets --file-system-id "$FS_ID" \
+      --profile "$AWS_PROFILE" --query 'length(MountTargets)' --output text 2>/dev/null || echo 0)
+    [[ "$COUNT" == "0" ]] && break
+    sleep 10
+  done
+  aws efs delete-file-system --file-system-id "$FS_ID" --profile "$AWS_PROFILE" 2>&1 || true
+  log_ok "EFS ${FS_ID} deletion initiated"
+done
 
 # =============================================================================
 section "PHASE 3 — DESTROY OCP CLUSTER"
@@ -122,7 +184,12 @@ section "PHASE 3 — DESTROY OCP CLUSTER"
 
 INSTALL_DIR="${ENV_DIR}/ocp-install-dir/${CLUSTER_NAME}"
 OCP_DESTROY_FAILED=false
-if [[ -d "$INSTALL_DIR" ]]; then
+# openshift-install needs both the dir AND metadata.json. If a prior partial
+# teardown removed metadata.json, the installer aborts with a fatal error
+# ("failed while preparing to destroy cluster: ... metadata.json: no such file")
+# and our set -euo pipefail kills the rest of the script. Detect this and skip
+# cleanly so Phases 4-9 can still sweep TF / AWS state.
+if [[ -d "$INSTALL_DIR" && -f "$INSTALL_DIR/metadata.json" ]]; then
   log_info "Destroying OCP cluster..."
 
   # Resolve AWS credentials for openshift-install (same logic as ocp-ipi module)
@@ -137,7 +204,7 @@ if [[ -d "$INSTALL_DIR" ]]; then
   fi
   export AWS_DEFAULT_REGION="${AWS_REGION}"
 
-  openshift-install destroy cluster --dir="$INSTALL_DIR" --log-level=info 2>&1 | tee -a "${LOG_FILE}"
+  openshift-install destroy cluster --dir="$INSTALL_DIR" --log-level=info 2>&1 | tee -a "${LOG_FILE}" || true
   OCP_DESTROY_RC=${PIPESTATUS[0]}
 
   # Restore profile-based auth for remaining phases
@@ -150,6 +217,8 @@ if [[ -d "$INSTALL_DIR" ]]; then
     OCP_DESTROY_FAILED=true
     log_warn "Will attempt orphaned resource cleanup in Phase 4a"
   fi
+elif [[ -d "$INSTALL_DIR" ]]; then
+  log_warn "Install dir exists but metadata.json is missing — cluster already destroyed in a prior run. Skipping Phase 3."
 else
   log_warn "No OCP install directory found at ${INSTALL_DIR} — skipping cluster destroy"
 fi
@@ -244,6 +313,16 @@ terraform init -reconfigure 2>&1 | tee -a "${LOG_FILE}" || true
 terraform destroy -auto-approve 2>&1 | tee "$DESTROY_LOG"
 TF_DESTROY_RC=${PIPESTATUS[0]}
 
+# Lesson 2026-06-26: after OCP VPC is destroyed, `data "aws_vpc" "ocp"` can't
+# resolve at refresh time and terraform aborts with "no matching EC2 VPC found",
+# blocking destroy of OTHER state entries (TF VPC, S3, ECR, Lambda...).
+# Retry with -refresh=false to bypass.
+if [[ $TF_DESTROY_RC -ne 0 ]] && grep -q "no matching EC2 VPC found" "$DESTROY_LOG" 2>/dev/null; then
+  log_warn "data.aws_vpc.ocp refresh failed (OCP VPC already gone) — retrying with -refresh=false"
+  terraform destroy -refresh=false -auto-approve 2>&1 | tee "$DESTROY_LOG"
+  TF_DESTROY_RC=${PIPESTATUS[0]}
+fi
+
 if [[ $TF_DESTROY_RC -eq 0 ]]; then
   log_ok "terraform destroy succeeded"
 else
@@ -252,7 +331,7 @@ else
   # Retry once after re-auth
   log_warn "Retrying after re-authentication..."
   aws_sso_login
-  terraform destroy -auto-approve 2>&1 | tee "$DESTROY_LOG"
+  terraform destroy -refresh=false -auto-approve 2>&1 | tee "$DESTROY_LOG"
   if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
     log_ok "terraform destroy succeeded on retry"
   else

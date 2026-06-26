@@ -264,15 +264,31 @@ When it says `TEARDOWN COMPLETE`, cost drops to **$0/hr** (the S3 state bucket i
 
 ### If teardown gets stuck
 
-Look for "Deleted NAT gateway=... " repeating on the same IDs forever — that's the lesson #13 symptom. Kill the script and run:
+`destroy.sh` is now robust against all known failure modes (see `docs/LESSONS_LEARNED.md` #13–#18):
+- Aurora/EFS not in TF state but still in AWS → Phase 2.5 has AWS-direct fallback
+- `metadata.json` missing → Phase 3 skips cleanly without killing the script
+- `data.aws_vpc.ocp` lookup fails after OCP gone → Phase 5 auto-retries with `-refresh=false`
+
+Just re-run `./destroy.sh` after any interruption — every phase is idempotent.
+
+If you ever need to surgically clean from any state, the canonical commands are:
 ```bash
+# Aurora orphan (replace cluster id):
+aws rds describe-db-instances --filters Name=db-cluster-id,Values=ai-demo-db \
+  --profile rhoai-demo --query 'DBInstances[*].DBInstanceIdentifier' --output text | \
+  xargs -n1 -I{} aws rds delete-db-instance --db-instance-identifier {} --skip-final-snapshot --profile rhoai-demo
+aws rds delete-db-cluster --db-cluster-identifier ai-demo-db --skip-final-snapshot --profile rhoai-demo
+
+# EFS orphan (replace fs id):
+for ap in $(aws efs describe-access-points --file-system-id fs-XXX --profile rhoai-demo --query 'AccessPoints[*].AccessPointId' --output text); do
+  aws efs delete-access-point --access-point-id $ap --profile rhoai-demo; done
+for mt in $(aws efs describe-mount-targets --file-system-id fs-XXX --profile rhoai-demo --query 'MountTargets[*].MountTargetId' --output text); do
+  aws efs delete-mount-target --mount-target-id $mt --profile rhoai-demo; done
+aws efs delete-file-system --file-system-id fs-XXX --profile rhoai-demo
+
+# Terraform destroy unable to refresh data sources:
 cd environments/demo
-AWS_PROFILE=rhoai-demo terraform destroy \
-  -target=module.aurora -target=module.efs \
-  -target=aws_security_group.aurora_ocp -target=aws_security_group.efs_ocp \
-  -target=null_resource.efs_storage_class -auto-approve
-cd ../..
-./destroy.sh    # resume — phases are idempotent
+AWS_PROFILE=rhoai-demo terraform destroy -refresh=false -auto-approve
 ```
 
 ---

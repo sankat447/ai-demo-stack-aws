@@ -90,6 +90,24 @@ Aurora and EFS live in the OCP-installed VPC (lesson #1). When `openshift-instal
 
 `grep "^a\|^b"` silently matches nothing because BRE treats `\|` as a literal two-char sequence. This caused destroy.sh Phase 2.5 guard to never fire — `grep -qE "^a|^b"` is the fix.
 
+## 16. Phase 2.5 needs AWS-direct fallback (orphaned Aurora/EFS)
+
+If terraform state is wiped or out of sync, `module.aurora` / `module.efs` aren't in state — Phase 2.5 says "skipping pre-destroy" — but Aurora/EFS may still exist in AWS, blocking openshift-install destroy via their ENIs. Caused a long-running NAT-gateway loop on 2026-06-26.
+
+**Implementation**: Phase 2.5 now scans AWS directly for any Aurora cluster starting with `${PROJECT}-${ENV}` (default `ai-demo`) and any EFS file system with a Name tag matching the same prefix. Deletes them (with proper instance/mount-target ordering) regardless of TF state.
+
+## 17. `data.aws_vpc.ocp` blocks `terraform destroy` after OCP is gone
+
+After `openshift-install destroy` removes the OCP VPC, any subsequent `terraform plan/apply/destroy` fails at the refresh phase with `Error: no matching EC2 VPC found` for `data.aws_vpc.ocp` — blocking destroy of everything else in state (TF VPC, S3, ECR, Lambda, route53).
+
+**Implementation**: `destroy.sh` Phase 5 detects this exact error string in the destroy log and retries with `-refresh=false`. The retry-after-reauth path also uses `-refresh=false` to be safe.
+
+## 18. `openshift-install destroy` aborts if metadata.json missing
+
+If a prior teardown succeeded partially (cluster gone) but the script was killed before residual cleanup, `metadata.json` is removed but the install-dir still exists. The next `destroy.sh` run hits Phase 3 → `openshift-install destroy` errors → `set -euo pipefail` kills the whole script → Phases 4-9 never run.
+
+**Implementation**: Phase 3 now checks for BOTH `$INSTALL_DIR` AND `$INSTALL_DIR/metadata.json` before invoking the installer. Missing metadata.json → log a warning and skip. Also added `|| true` and explicit RC capture so a non-zero installer exit doesn't kill the script.
+
 ## 15. `terraform destroy -target` needs ALL dependents
 
 Targeted destroy of `module.aurora` and `module.efs` once reported "0 destroyed" because `null_resource.efs_storage_class` had a dependency on `module.efs.file_system_id`. Terraform refused to drop the chain unless the dependent was also targeted.
