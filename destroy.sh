@@ -310,7 +310,10 @@ log_info "Running: terraform destroy -auto-approve"
 
 terraform init -reconfigure 2>&1 | tee -a "${LOG_FILE}" || true
 
-terraform destroy -auto-approve 2>&1 | tee "$DESTROY_LOG"
+# CRITICAL: `|| true` after the tee pipeline. Without it, `set -euo pipefail`
+# exits the whole script on a terraform failure before we can read PIPESTATUS
+# and try the -refresh=false fallback. Observed 2026-07-03.
+terraform destroy -auto-approve 2>&1 | tee "$DESTROY_LOG" || true
 TF_DESTROY_RC=${PIPESTATUS[0]}
 
 # Lesson 2026-06-26: after OCP VPC is destroyed, `data "aws_vpc" "ocp"` can't
@@ -319,7 +322,7 @@ TF_DESTROY_RC=${PIPESTATUS[0]}
 # Retry with -refresh=false to bypass.
 if [[ $TF_DESTROY_RC -ne 0 ]] && grep -q "no matching EC2 VPC found" "$DESTROY_LOG" 2>/dev/null; then
   log_warn "data.aws_vpc.ocp refresh failed (OCP VPC already gone) — retrying with -refresh=false"
-  terraform destroy -refresh=false -auto-approve 2>&1 | tee "$DESTROY_LOG"
+  terraform destroy -refresh=false -auto-approve 2>&1 | tee "$DESTROY_LOG" || true
   TF_DESTROY_RC=${PIPESTATUS[0]}
 fi
 
@@ -331,7 +334,7 @@ else
   # Retry once after re-auth
   log_warn "Retrying after re-authentication..."
   aws_sso_login
-  terraform destroy -refresh=false -auto-approve 2>&1 | tee "$DESTROY_LOG"
+  terraform destroy -refresh=false -auto-approve 2>&1 | tee "$DESTROY_LOG" || true
   if [[ ${PIPESTATUS[0]} -eq 0 ]]; then
     log_ok "terraform destroy succeeded on retry"
   else
@@ -619,14 +622,17 @@ log_info "Synchronising Terraform state with AWS..."
 
 terraform init -reconfigure 2>&1 | tee -a "${LOG_FILE}" > /dev/null || true
 
-# Refresh state — marks destroyed resources as gone
+# Refresh state — marks destroyed resources as gone. Same lesson as Phase 5:
+# data.aws_vpc.ocp will fail refresh once OCP VPC is gone. -refresh only
+# affects terraform refresh's own scope, but the follow-on destroy must also
+# use -refresh=false, or it will re-attempt the dead data source lookup.
 terraform refresh 2>&1 | tee -a "${LOG_FILE}" > /dev/null || true
 
 # Remove any remaining resources from state that were force-deleted
 REMAINING_RESOURCES=$(terraform state list 2>/dev/null || echo "")
 if [[ -n "$REMAINING_RESOURCES" ]]; then
   log_warn "Terraform state still has resources — running final destroy..."
-  terraform destroy -auto-approve 2>&1 | tee -a "${LOG_FILE}" || true
+  terraform destroy -refresh=false -auto-approve 2>&1 | tee -a "${LOG_FILE}" || true
 
   # If destroy fails, force-remove remaining state entries
   STILL_REMAINING=$(terraform state list 2>/dev/null || echo "")

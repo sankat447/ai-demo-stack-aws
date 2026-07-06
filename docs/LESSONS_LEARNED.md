@@ -102,6 +102,27 @@ After `openshift-install destroy` removes the OCP VPC, any subsequent `terraform
 
 **Implementation**: `destroy.sh` Phase 5 detects this exact error string in the destroy log and retries with `-refresh=false`. The retry-after-reauth path also uses `-refresh=false` to be safe.
 
+## 19. `set -euo pipefail` swallows `PIPESTATUS` when pipeline fails
+
+destroy.sh had `terraform destroy | tee LOG` followed by `TF_RC=${PIPESTATUS[0]}` and a retry block for `no matching EC2 VPC found`. Under `set -euo pipefail`, a failing pipeline exits the script IMMEDIATELY — before the `PIPESTATUS` assignment or the retry block ever runs. Lesson #17's retry logic was dead code.
+
+**Implementation**: append `|| true` to every diagnostic pipeline where you also read `PIPESTATUS`:
+```bash
+terraform destroy -auto-approve 2>&1 | tee "$LOG" || true
+RC=${PIPESTATUS[0]}
+if [[ $RC -ne 0 ]] && grep -q "no matching EC2 VPC found" "$LOG"; then
+  terraform destroy -refresh=false -auto-approve 2>&1 | tee "$LOG" || true
+  RC=${PIPESTATUS[0]}
+fi
+```
+Also applied to Phase 7's fallback destroy. Fixed 2026-07-06.
+
+## 20. `terraform destroy` doesn't clean lambda-adjacent resources when Lambda is pre-deleted
+
+If Lambda function is deleted manually (or by a prior failed run) before `terraform destroy` runs, TF removes the Lambda from state but ALSO leaves behind: the SNS topic, CloudWatch event rules + targets, IAM role, and Budget — because those depend on Lambda's ARN which is now missing from state. destroy.sh Phase 9 didn't cover these, so they lingered after "TEARDOWN COMPLETE".
+
+**Implementation**: Phase 9 should sweep by name for orphaned SNS/Budget/CW-Events/IAM-roles matching `${PROJECT}-${ENV}-*`. Also S3 versioned buckets need `list-object-versions` + `delete-objects` for BOTH `Versions` and `DeleteMarkers` before `delete-bucket`. Manual commands documented in ONBOARDING.md. TODO: bake into destroy.sh Phase 9.
+
 ## 18. `openshift-install destroy` aborts if metadata.json missing
 
 If a prior teardown succeeded partially (cluster gone) but the script was killed before residual cleanup, `metadata.json` is removed but the install-dir still exists. The next `destroy.sh` run hits Phase 3 → `openshift-install destroy` errors → `set -euo pipefail` kills the whole script → Phases 4-9 never run.
