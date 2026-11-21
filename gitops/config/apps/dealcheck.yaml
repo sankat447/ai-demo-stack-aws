@@ -236,6 +236,9 @@ metadata:
   namespace: dealcheck
   labels:
     app.kubernetes.io/part-of: dealcheck
+  annotations:
+    # "Check now" and scout requests are synchronous and can run past the router's 30s default.
+    haproxy.router.openshift.io/timeout: 300s
 spec:
   host: dealcheck.apps.ai-demo.iisdemolab.click
   to:
