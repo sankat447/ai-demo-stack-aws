@@ -7,6 +7,8 @@
 # * No credentials live in git. The Secret `dealcheck-secrets` is created out of band by that
 #   script (database password, API bearer token, optional Keepa / Anthropic keys).
 # * Pods run under the default restricted SCC with an arbitrary UID; no anyuid binding.
+# * CPU requests are deliberately tiny (5m per pod, no CPU limit): the service is low-traffic
+#   and the worker nodes have almost no unreserved CPU. Raise them if capacity is added.
 ---
 apiVersion: image.openshift.io/v1
 kind: ImageStream
@@ -98,7 +100,7 @@ spec:
           periodSeconds: 10
         resources:
           requests:
-            cpu: 100m
+            cpu: 5m
             memory: 256Mi
           limits:
             memory: 1Gi
@@ -171,7 +173,7 @@ spec:
           periodSeconds: 20
         resources:
           requests:
-            cpu: 100m
+            cpu: 5m
             memory: 256Mi
           limits:
             memory: 768Mi
@@ -208,7 +210,7 @@ spec:
             name: dealcheck-secrets
         resources:
           requests:
-            cpu: 100m
+            cpu: 5m
             memory: 256Mi
           limits:
             memory: 768Mi
