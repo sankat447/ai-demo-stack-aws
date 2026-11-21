@@ -1,0 +1,246 @@
+# dealcheck — read-only deal verification (FastAPI web API + scheduled worker + PostgreSQL).
+# Source: the deal-verifier project. Public URL: https://dealcheck.apps.ai-demo.iisdemolab.click
+#
+# * Namespace `dealcheck` is NOT a Service Mesh member, so no maistra expose-route label is needed.
+# * The image is built in-cluster from a local source upload (binary build) into the internal
+#   registry — no public registry involved. Run deal-verifier/deploy/openshift/deploy.sh.
+# * No credentials live in git. The Secret `dealcheck-secrets` is created out of band by that
+#   script (database password, API bearer token, optional Keepa / Anthropic keys).
+# * Pods run under the default restricted SCC with an arbitrary UID; no anyuid binding.
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: dealcheck
+  namespace: dealcheck
+  labels:
+    app.kubernetes.io/part-of: dealcheck
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: dealcheck
+  namespace: dealcheck
+  labels:
+    app.kubernetes.io/part-of: dealcheck
+spec:
+  runPolicy: Serial
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: dealcheck:latest
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dealcheck-config
+  namespace: dealcheck
+  labels:
+    app.kubernetes.io/part-of: dealcheck
+data:
+  # "auto": Claude (explanations, term interpretation, web-search scout) turns on only
+  # when ANTHROPIC_API_KEY is present in dealcheck-secrets; otherwise fixed templates.
+  DEALCHECK_ANALYST: "auto"
+  DEALCHECK_SCOUT: "auto"
+  DEALCHECK_CLAUDE_MODEL: "claude-opus-5-5"
+  DEALCHECK_OUTBOX_DIR: "/tmp/outbox"
+  DEALCHECK_HIGH_PRIORITY_INTERVAL_MIN: "10"
+  DEALCHECK_NORMAL_INTERVAL_MIN: "45"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dealcheck-db
+  namespace: dealcheck
+  labels:
+    app: dealcheck-db
+    app.kubernetes.io/part-of: dealcheck
+spec:
+  serviceName: dealcheck-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dealcheck-db
+  template:
+    metadata:
+      labels:
+        app: dealcheck-db
+    spec:
+      containers:
+      - name: postgresql
+        image: registry.redhat.io/rhel9/postgresql-16:latest
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRESQL_USER
+          value: dealcheck
+        - name: POSTGRESQL_DATABASE
+          value: dealcheck
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dealcheck-secrets
+              key: POSTGRESQL_PASSWORD
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/pgsql/data
+        readinessProbe:
+          exec:
+            command: ["/bin/sh", "-c", "pg_isready -h 127.0.0.1 -p 5432"]
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: gp3-csi
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dealcheck-db
+  namespace: dealcheck
+  labels:
+    app.kubernetes.io/part-of: dealcheck
+spec:
+  selector:
+    app: dealcheck-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dealcheck-web
+  namespace: dealcheck
+  labels:
+    app: dealcheck-web
+    app.kubernetes.io/part-of: dealcheck
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dealcheck-web
+  template:
+    metadata:
+      labels:
+        app: dealcheck-web
+    spec:
+      containers:
+      - name: web
+        image: image-registry.openshift-image-registry.svc:5000/dealcheck/dealcheck:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: dealcheck-config
+        # Provides DEALCHECK_DATABASE_URL and DEALCHECK_API_TOKEN (required), plus
+        # DEALCHECK_KEEPA_API_KEY and ANTHROPIC_API_KEY when they were supplied.
+        - secretRef:
+            name: dealcheck-secrets
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 768Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dealcheck-worker
+  namespace: dealcheck
+  labels:
+    app: dealcheck-worker
+    app.kubernetes.io/part-of: dealcheck
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dealcheck-worker
+  template:
+    metadata:
+      labels:
+        app: dealcheck-worker
+    spec:
+      containers:
+      - name: worker
+        image: image-registry.openshift-image-registry.svc:5000/dealcheck/dealcheck:latest
+        imagePullPolicy: Always
+        command: ["python", "-m", "dealcheck.worker"]
+        envFrom:
+        - configMapRef:
+            name: dealcheck-config
+        - secretRef:
+            name: dealcheck-secrets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 768Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dealcheck-web
+  namespace: dealcheck
+  labels:
+    app.kubernetes.io/part-of: dealcheck
+spec:
+  selector:
+    app: dealcheck-web
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: dealcheck
+  namespace: dealcheck
+  labels:
+    app.kubernetes.io/part-of: dealcheck
+spec:
+  host: dealcheck.apps.ai-demo.iisdemolab.click
+  to:
+    kind: Service
+    name: dealcheck-web
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
